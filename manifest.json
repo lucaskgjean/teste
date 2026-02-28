@@ -1,0 +1,20 @@
+
+{
+  "short_name": "RotaFin",
+  "name": "RotaFinanceira Driver",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/1165/1165961.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#4f46e5",
+  "background_color": "#f8fafc",
+  "orientation": "portrait",
+  "description": "Controle financeiro para motoristas e entregadores.",
+  "lang": "pt-BR"
+}
