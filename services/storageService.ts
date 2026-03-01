@@ -50,6 +50,7 @@ export const storageService = {
   },
 
   async saveEntries(entries: DailyEntry[]) {
+    console.log(`Salvando ${entries.length} entradas no IndexedDB...`);
     await localforage.setItem(KEYS.ENTRIES, entries);
   },
 
@@ -59,6 +60,7 @@ export const storageService = {
   },
 
   async saveTimeEntries(timeEntries: TimeEntry[]) {
+    console.log(`Salvando ${timeEntries.length} pontos no IndexedDB...`);
     await localforage.setItem(KEYS.TIME_ENTRIES, timeEntries);
   },
 

@@ -42,6 +42,7 @@ const App: React.FC = () => {
   const [editingEntry, setEditingEntry] = useState<DailyEntry | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [darkMode, setDarkMode] = useState<boolean>(false);
 
@@ -117,7 +118,8 @@ const App: React.FC = () => {
   }, []);
 
   const refreshData = async () => {
-    setIsSaving(true);
+    if (isRefreshing) return;
+    setIsRefreshing(true);
     try {
       const [savedEntries, savedTimeEntries, savedConfig] = await Promise.all([
         storageService.getEntries(),
@@ -133,13 +135,13 @@ const App: React.FC = () => {
     } catch (e) {
       showToast("Erro ao atualizar dados.", "error");
     } finally {
-      setTimeout(() => setIsSaving(false), 500);
+      setTimeout(() => setIsRefreshing(false), 500);
     }
   };
 
   // Persistência Assíncrona com Feedback
   useEffect(() => {
-    if (isLoading) return; // Evita salvar durante o carregamento inicial
+    if (isLoading || isRefreshing) return; // Evita salvar durante o carregamento inicial ou atualização manual
 
     const saveData = async () => {
       setIsSaving(true);
@@ -156,12 +158,12 @@ const App: React.FC = () => {
     };
 
     saveData();
-  }, [entries, timeEntries, isLoading]);
+  }, [entries, timeEntries, isLoading, isRefreshing]);
 
   useEffect(() => {
-    if (isLoading) return;
+    if (isLoading || isRefreshing) return;
     storageService.saveConfig(config).catch(console.error);
-  }, [config, isLoading]);
+  }, [config, isLoading, isRefreshing]);
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
@@ -170,26 +172,30 @@ const App: React.FC = () => {
 
   const addEntry = (entry: DailyEntry) => {
     const todayStr = getLocalDateStr();
-    const todayGrossBefore = entries
-      .filter(e => e.date === todayStr)
-      .reduce((acc, curr) => acc + curr.grossAmount, 0);
     
-    const newEntries = [...entries, entry];
-    setEntries(newEntries);
+    setEntries(prev => {
+      const newEntries = [...prev, entry];
+      
+      const todayGrossBefore = prev
+        .filter(e => e.date === todayStr)
+        .reduce((acc, curr) => acc + curr.grossAmount, 0);
+      
+      const todayGrossAfter = todayGrossBefore + entry.grossAmount;
 
-    const todayGrossAfter = todayGrossBefore + entry.grossAmount;
+      if (todayGrossBefore < config.dailyGoal && todayGrossAfter >= config.dailyGoal) {
+        confetti({
+          particleCount: 150,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#6366f1', '#10b981', '#f59e0b']
+        });
+        showToast("Meta diária batida! Parabéns! 🎉");
+      } else {
+        showToast("Lançamento salvo com sucesso!");
+      }
 
-    if (todayGrossBefore < config.dailyGoal && todayGrossAfter >= config.dailyGoal) {
-      confetti({
-        particleCount: 150,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#6366f1', '#10b981', '#f59e0b']
-      });
-      showToast("Meta diária batida! Parabéns! 🎉");
-    } else {
-      showToast("Lançamento salvo com sucesso!");
-    }
+      return newEntries;
+    });
 
     if (entry.fuelPrice) {
       setConfig(prev => ({ ...prev, lastFuelPrice: entry.fuelPrice }));
@@ -321,7 +327,7 @@ const App: React.FC = () => {
           <div className="flex items-center gap-3">
             <button 
               onClick={refreshData}
-              className={`p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-400 hover:text-indigo-600 transition-all ${isSaving ? 'animate-spin text-indigo-600' : ''}`}
+              className={`p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-400 hover:text-indigo-600 transition-all ${isRefreshing ? 'animate-spin text-indigo-600' : ''}`}
               title="Atualizar dados"
             >
               <RefreshCw size={20} />

@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { DailyEntry, AppConfig } from '../types';
-import { generateId } from '../utils/calculations';
+import { generateId, getLocalDateStr } from '../utils/calculations';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Navigation, 
@@ -20,7 +20,7 @@ interface QuickKMProps {
 const QuickKM: React.FC<QuickKMProps> = ({ onAdd, config }) => {
   const [totalKm, setTotalKm] = useState<string>('');
   const [fuelPrice, setFuelPrice] = useState<string>(config.lastFuelPrice?.toString() || '');
-  const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState<string>(getLocalDateStr());
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {

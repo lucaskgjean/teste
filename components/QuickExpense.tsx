@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { calculateManualExpense } from '../utils/calculations';
+import { calculateManualExpense, getLocalDateStr } from '../utils/calculations';
 import { DailyEntry } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -32,7 +32,7 @@ const QuickExpense: React.FC<QuickExpenseProps> = ({ onAdd }) => {
   const [description, setDescription] = useState<string>('');
   const [category, setCategory] = useState<'fuel' | 'food' | 'maintenance'>('fuel');
   const [time, setTime] = useState<string>(getCurrentTime());
-  const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState<string>(getLocalDateStr());
   const [kmAtMaintenance, setKmAtMaintenance] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<'money' | 'pix' | 'debito'>('money');
 

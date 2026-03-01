@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { TimeEntry } from '../types';
-import { generateId, calculateDuration, formatDuration } from '../utils/calculations';
+import { generateId, calculateDuration, formatDuration, getLocalDateStr } from '../utils/calculations';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Clock, 
@@ -23,7 +23,7 @@ interface TimeTrackingProps {
 }
 
 const TimeTracking: React.FC<TimeTrackingProps> = ({ timeEntries, onAdd, onUpdate, onDelete }) => {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalDateStr();
   const currentTime = new Date().toTimeString().slice(0, 5);
 
   const activeEntry = useMemo(() => 

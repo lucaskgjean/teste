@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { DailyEntry, AppConfig, TimeEntry } from '../types';
-import { formatCurrency, getWeeklySummary, calculateDuration, formatDuration } from '../utils/calculations';
+import { formatCurrency, getWeeklySummary, calculateDuration, formatDuration, getLocalDateStr } from '../utils/calculations';
 import { motion } from 'framer-motion';
 import { 
   BarChart3, 
@@ -32,7 +32,7 @@ interface ReportsProps {
 }
 
 const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config }) => {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalDateStr();
   const [startDate, setStartDate] = useState<string>(today);
   const [endDate, setEndDate] = useState<string>(today);
   const [selectedStore, setSelectedStore] = useState<string>('all');

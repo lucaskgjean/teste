@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { calculateDailyEntry } from '../utils/calculations';
+import { calculateDailyEntry, getLocalDateStr } from '../utils/calculations';
 import { DailyEntry, AppConfig } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -30,7 +30,7 @@ const QuickLaunch: React.FC<QuickLaunchProps> = ({ onAdd, existingEntries, confi
   const [amount, setAmount] = useState<string>('6'); 
   const [storeName, setStoreName] = useState<string>('');
   const [time, setTime] = useState<string>(getCurrentTime());
-  const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState<string>(getLocalDateStr());
   const [paymentMethod, setPaymentMethod] = useState<'money' | 'pix' | 'caderno'>('pix');
   const [showAdvanced, setShowAdvanced] = useState(false);
 
