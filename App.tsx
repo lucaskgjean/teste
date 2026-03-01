@@ -358,7 +358,7 @@ const App: React.FC = () => {
             {activeTab === 'expenses' && <Expenses entries={entries} config={config} onEdit={setEditingEntry} onAdd={addEntry} />}
             {activeTab === 'maintenance' && <Maintenance entries={entries} config={config} onEdit={setEditingEntry} onAdd={addEntry} />}
             {activeTab === 'ponto' && <TimeTracking timeEntries={timeEntries} onAdd={addTimeEntry} onUpdate={updateTimeEntry} onDelete={deleteTimeEntry} />}
-            {activeTab === 'reports' && <Reports entries={entries} timeEntries={timeEntries} config={config} />}
+            {activeTab === 'reports' && <Reports entries={entries} timeEntries={timeEntries} config={config} onAddEntry={addEntry} />}
             {activeTab === 'history' && (
               <div className="space-y-6">
                 <QuickLaunch onAdd={addEntry} existingEntries={entries} config={config} />

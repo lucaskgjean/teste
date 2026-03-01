@@ -2,18 +2,23 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Send, Bot, User, Loader2, AlertCircle } from 'lucide-react';
-import { formatCurrency } from '../utils/calculations';
+import { Sparkles, Send, Bot, User, Loader2, AlertCircle, Paperclip } from 'lucide-react';
+import { formatCurrency, generateId, getLocalDateStr } from '../utils/calculations';
+import { DailyEntry } from '../types';
 
 interface AIReportAssistantProps {
   reportData: any;
+  onAddEntries: (entries: DailyEntry[]) => void;
+  config: any;
 }
 
-const AIReportAssistant: React.FC<AIReportAssistantProps> = ({ reportData }) => {
+const AIReportAssistant: React.FC<AIReportAssistantProps> = ({ reportData, onAddEntries, config }) => {
   const [messages, setMessages] = useState<{ role: 'user' | 'model'; text: string }[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [image, setImage] = useState<{ data: string; mimeType: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -22,17 +27,39 @@ const AIReportAssistant: React.FC<AIReportAssistantProps> = ({ reportData }) => 
     }
   }, [messages, isLoading]);
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      setImage({
+        data: base64.split(',')[1],
+        mimeType: file.type
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+    if ((!input.trim() && !image) || isLoading) return;
 
     const userMessage = input.trim();
+    const currentImage = image;
+    
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', text: userMessage }]);
+    setImage(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+
+    setMessages(prev => [...prev, { 
+      role: 'user', 
+      text: userMessage || "Enviou uma imagem para análise." 
+    }]);
     setIsLoading(true);
     setError(null);
 
     try {
-      // Tenta buscar a chave de diferentes formas para garantir compatibilidade com Vercel/Vite
       const apiKey = process.env.GEMINI_API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY;
       
       if (!apiKey) {
@@ -43,53 +70,95 @@ const AIReportAssistant: React.FC<AIReportAssistantProps> = ({ reportData }) => 
       
       const context = `
         Você é o assistente de inteligência artificial do aplicativo RotaFinanceira.
-        Seu objetivo é analisar os dados financeiros do usuário e fornecer insights úteis.
+        Seu objetivo é analisar os dados financeiros do usuário, fornecer insights e, PRINCIPALMENTE, ajudar a LANÇAR NOVOS DADOS a partir de textos ou imagens de relatórios de aplicativos de entrega (iFood, Uber, Rappi, etc.).
         
-        DADOS DO RELATÓRIO ATUAL:
-        - Período Analisado: ${reportData.startDate} até ${reportData.endDate}
-        - Faturamento Bruto Total: ${formatCurrency(reportData.summary.totalGross)}
-        - Lucro Líquido Real: ${formatCurrency(reportData.summary.totalNet)}
-        - Total de Despesas: ${formatCurrency(reportData.totalExpenses)}
-        - Quantidade de Entregas: ${reportData.quickLaunchesCount}
-        - KM Total Rodado: ${reportData.totalKm.toFixed(1)} km
-        - Tempo Total de Trabalho: ${Math.floor(reportData.totalHours / 60)}h ${reportData.totalHours % 60}min
-        - Ticket Médio por Entrega: ${formatCurrency(reportData.avgValuePerLaunch)}
-        - Faturamento por Hora: ${formatCurrency(reportData.avgGrossPerHour)}
+        DADOS DO RELATÓRIO ATUAL NO SISTEMA:
+        - Período: ${reportData.startDate} até ${reportData.endDate}
+        - Faturamento Bruto: ${formatCurrency(reportData.summary.totalGross)}
+        - Lucro Líquido: ${formatCurrency(reportData.summary.totalNet)}
         
-        DESPESAS DETALHADAS:
-        - Combustível: ${formatCurrency(reportData.totalFuelSpent)}
-        - Alimentação: ${formatCurrency(reportData.totalFoodSpent)}
-        - Manutenção: ${formatCurrency(reportData.totalMaintenanceSpent)}
+        INSTRUÇÕES DE IMPORTAÇÃO:
+        Se o usuário enviar um texto ou imagem que pareça um relatório de ganhos ou taxas:
+        1. Identifique cada entrega/taxa individualmente.
+        2. Extraia: Data (YYYY-MM-DD), Valor Bruto (grossAmount), Nome da Loja/App (storeName) e Hora (HH:mm).
+        3. Se a data não estiver clara, use a data atual: ${getLocalDateStr()}.
+        4. Se a hora não estiver clara, use "12:00".
+        5. Se o usuário pedir para "lançar" ou "importar", você DEVE responder com uma mensagem amigável E incluir no final da sua resposta EXATAMENTE este formato de comando (sem blocos de código markdown):
+           ACTION:IMPORT:[{"date":"YYYY-MM-DD","time":"HH:mm","storeName":"Nome","grossAmount":10.50}]
         
-        FATURAMENTO POR MÉTODO:
-        - PIX: ${formatCurrency(reportData.totalsByPayment.pix || 0)}
-        - Dinheiro: ${formatCurrency(reportData.totalsByPayment.money || 0)}
-        - Caderno: ${formatCurrency(reportData.totalsByPayment.caderno || 0)}
-
-        GASTOS POR MÉTODO:
-        - PIX: ${formatCurrency(reportData.expenseTotalsByMethod.pix || 0)}
-        - Dinheiro: ${formatCurrency(reportData.expenseTotalsByMethod.money || 0)}
-        - Caderno: ${formatCurrency(reportData.expenseTotalsByMethod.caderno || 0)}
-
-        Responda de forma concisa, profissional e amigável em português do Brasil. 
-        Se o usuário perguntar algo que não está nos dados, informe que você só tem acesso aos dados do período selecionado.
+        REGRAS PARA O JSON:
+        - grossAmount deve ser um número.
+        - storeName deve ser o nome do restaurante ou do app.
+        - Você pode enviar múltiplos objetos no array.
+        - NÃO use blocos de código markdown (\`\`\`) para o comando ACTION.
+        
+        Se for apenas uma pergunta sobre os dados, responda normalmente em português.
       `;
+
+      const parts: any[] = [{ text: context + "\n\nPergunta/Relatório do usuário: " + userMessage }];
+      
+      if (currentImage) {
+        parts.push({
+          inlineData: {
+            data: currentImage.data,
+            mimeType: currentImage.mimeType
+          }
+        });
+      }
 
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: [
-          { role: 'user', parts: [{ text: context + "\n\nPergunta do usuário: " + userMessage }] }
-        ],
+        contents: [{ role: 'user', parts }],
       });
 
-      const modelText = response.text || "Desculpe, não consegui processar sua solicitação.";
-      setMessages(prev => [...prev, { role: 'model', text: modelText }]);
+      let modelText = response.text || "Desculpe, não consegui processar sua solicitação.";
+      
+      // Verifica se há comando de importação
+      if (modelText.includes('ACTION:IMPORT:')) {
+        const parts = modelText.split('ACTION:IMPORT:');
+        const displayMessage = parts[0].trim();
+        const jsonStr = parts[1].trim();
+
+        try {
+          const rawEntries = JSON.parse(jsonStr);
+          const entriesToImport: DailyEntry[] = rawEntries.map((re: any) => {
+            // Calcula os percentuais com base na config do usuário
+            const fuel = re.grossAmount * (config.percFuel || 0.14);
+            const food = re.grossAmount * (config.percFood || 0.08);
+            const maintenance = re.grossAmount * (config.percMaintenance || 0.08);
+            const netAmount = re.grossAmount - fuel - food - maintenance;
+
+            return {
+              id: generateId(),
+              date: re.date || getLocalDateStr(),
+              time: re.time || "12:00",
+              storeName: re.storeName || "Importado via IA",
+              grossAmount: re.grossAmount,
+              fuel,
+              food,
+              maintenance,
+              netAmount,
+              paymentMethod: 'pix',
+              isPaid: true,
+              category: 'income'
+            };
+          });
+
+          onAddEntries(entriesToImport);
+          setMessages(prev => [...prev, { role: 'model', text: displayMessage || "Lançamentos processados com sucesso!" }]);
+        } catch (e) {
+          console.error("Erro ao processar JSON da IA:", e);
+          setMessages(prev => [...prev, { role: 'model', text: "Consegui ler os dados, mas houve um erro ao formatar os lançamentos. Por favor, tente novamente ou cole o texto de forma mais clara." }]);
+        }
+      } else {
+        setMessages(prev => [...prev, { role: 'model', text: modelText }]);
+      }
     } catch (err: any) {
       console.error("Erro na IA:", err);
       if (err.message === 'API_KEY_MISSING') {
-        setError("Chave da API não encontrada. Se você estiver no Vercel, adicione a variável de ambiente GEMINI_API_KEY nas configurações do projeto.");
+        setError("Chave da API não encontrada.");
       } else {
-        setError("Ocorreu um erro ao consultar a inteligência artificial. Tente novamente.");
+        setError("Ocorreu um erro ao consultar a inteligência artificial.");
       }
     } finally {
       setIsLoading(false);
@@ -109,8 +178,8 @@ const AIReportAssistant: React.FC<AIReportAssistantProps> = ({ reportData }) => 
             <Sparkles size={20} />
           </div>
           <div>
-            <h3 className="text-sm font-black uppercase tracking-widest">IA Analista Financeira</h3>
-            <p className="text-[10px] opacity-70 font-bold uppercase tracking-tight">Análise inteligente de dados</p>
+            <h3 className="text-sm font-black uppercase tracking-widest">IA Analista & Importação</h3>
+            <p className="text-[10px] opacity-70 font-bold uppercase tracking-tight">Análise e lançamentos automáticos</p>
           </div>
         </div>
       </div>
@@ -125,7 +194,7 @@ const AIReportAssistant: React.FC<AIReportAssistantProps> = ({ reportData }) => 
             <Bot size={48} className="text-indigo-500" />
             <div className="max-w-xs">
               <p className="text-xs font-black uppercase tracking-widest text-slate-500">Olá! Eu sou sua IA Analista.</p>
-              <p className="text-[10px] font-bold text-slate-400 mt-1">Pergunte-me sobre seu lucro, médias ou como melhorar seu desempenho neste período.</p>
+              <p className="text-[10px] font-bold text-slate-400 mt-1">Cole o texto de um relatório ou envie um print para eu lançar as taxas automaticamente para você.</p>
             </div>
           </div>
         )}
@@ -141,7 +210,7 @@ const AIReportAssistant: React.FC<AIReportAssistantProps> = ({ reportData }) => 
               <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${msg.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-slate-800 text-indigo-600 shadow-sm'}`}>
                 {msg.role === 'user' ? <User size={16} /> : <Bot size={16} />}
               </div>
-              <div className={`p-4 rounded-2xl text-xs leading-relaxed ${msg.role === 'user' ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 shadow-sm rounded-tl-none border border-slate-100 dark:border-slate-700'}`}>
+              <div className={`p-4 rounded-2xl text-xs leading-relaxed whitespace-pre-wrap ${msg.role === 'user' ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 shadow-sm rounded-tl-none border border-slate-100 dark:border-slate-700'}`}>
                 {msg.text}
               </div>
             </div>
@@ -176,22 +245,52 @@ const AIReportAssistant: React.FC<AIReportAssistantProps> = ({ reportData }) => 
 
       {/* Input Area */}
       <div className="p-6 bg-white dark:bg-slate-900 border-t border-slate-50 dark:border-slate-800">
-        <div className="relative">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Pergunte algo sobre o relatório..."
-            className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl pl-5 pr-14 py-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition font-bold text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 text-sm"
+        {image && (
+          <div className="mb-3 flex items-center gap-2">
+            <div className="relative w-12 h-12 rounded-lg overflow-hidden border border-indigo-200">
+              <img src={`data:${image.mimeType};base64,${image.data}`} className="w-full h-full object-cover" alt="Preview" />
+              <button 
+                onClick={() => setImage(null)}
+                className="absolute top-0 right-0 bg-rose-500 text-white p-0.5 rounded-bl-lg"
+              >
+                <AlertCircle size={10} />
+              </button>
+            </div>
+            <span className="text-[10px] font-black text-slate-400 uppercase">Imagem selecionada</span>
+          </div>
+        )}
+        <div className="relative flex gap-2">
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleImageSelect} 
+            accept="image/*" 
+            className="hidden" 
           />
           <button
-            onClick={handleSend}
-            disabled={!input.trim() || isLoading}
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-indigo-600 dark:bg-indigo-500 text-white rounded-xl flex items-center justify-center hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => fileInputRef.current?.click()}
+            className="w-12 h-12 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-xl flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+            title="Anexar print do relatório"
           >
-            <Send size={18} />
+            <Paperclip size={20} />
           </button>
+          <div className="relative flex-1">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+              placeholder="Cole o relatório ou pergunte algo..."
+              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl pl-5 pr-14 py-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition font-bold text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 text-sm"
+            />
+            <button
+              onClick={handleSend}
+              disabled={(!input.trim() && !image) || isLoading}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-indigo-600 dark:bg-indigo-500 text-white rounded-xl flex items-center justify-center hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Send size={18} />
+            </button>
+          </div>
         </div>
       </div>
     </motion.div>

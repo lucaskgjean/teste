@@ -29,9 +29,10 @@ interface ReportsProps {
   entries: DailyEntry[];
   timeEntries: TimeEntry[];
   config: AppConfig;
+  onAddEntry: (entry: DailyEntry) => void;
 }
 
-const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config }) => {
+const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config, onAddEntry }) => {
   const today = getLocalDateStr();
   const [startDate, setStartDate] = useState<string>(today);
   const [endDate, setEndDate] = useState<string>(today);
@@ -511,7 +512,11 @@ const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config }) => {
       </motion.div>
 
       {/* IA Analista Financeira */}
-      <AIReportAssistant reportData={reportData} />
+      <AIReportAssistant 
+        reportData={reportData} 
+        onAddEntries={(newEntries) => newEntries.forEach(onAddEntry)}
+        config={config}
+      />
     </motion.div>
   );
 };
