@@ -20,7 +20,8 @@ import {
   ChevronRight,
   Download,
   Store,
-  CreditCard
+  CreditCard,
+  MoreHorizontal
 } from 'lucide-react';
 
 import AIReportAssistant from './AIReportAssistant';
@@ -61,7 +62,7 @@ const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config, onAddEn
 
     const expenseTotalsByMethod = expenseEntries.reduce((acc, curr) => {
       const method = curr.paymentMethod || 'pix';
-      const total = curr.fuel + curr.food + curr.maintenance;
+      const total = curr.fuel + curr.food + curr.maintenance + (curr.others || 0);
       acc[method] = (acc[method] || 0) + total;
       return acc;
     }, {} as Record<string, number>);
@@ -70,8 +71,9 @@ const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config, onAddEn
       acc.fuel = (acc.fuel || 0) + curr.fuel;
       acc.food = (acc.food || 0) + curr.food;
       acc.maintenance = (acc.maintenance || 0) + curr.maintenance;
+      acc.others = (acc.others || 0) + (curr.others || 0);
       return acc;
-    }, { fuel: 0, food: 0, maintenance: 0 });
+    }, { fuel: 0, food: 0, maintenance: 0, others: 0 });
 
     const quickLaunchesCount = incomeEntries.length;
     
@@ -85,7 +87,8 @@ const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config, onAddEn
     const totalFuelSpent = expenseEntries.reduce((acc, curr) => acc + curr.fuel, 0);
     const totalFoodSpent = expenseEntries.reduce((acc, curr) => acc + curr.food, 0);
     const totalMaintenanceSpent = expenseEntries.reduce((acc, curr) => acc + curr.maintenance, 0);
-    const totalExpenses = totalFuelSpent + totalFoodSpent + totalMaintenanceSpent;
+    const totalOthersSpent = expenseEntries.reduce((acc, curr) => acc + (curr.others || 0), 0);
+    const totalExpenses = totalFuelSpent + totalFoodSpent + totalMaintenanceSpent + totalOthersSpent;
 
     const avgValuePerLaunch = quickLaunchesCount > 0 ? summary.totalGross / quickLaunchesCount : 0;
     const avgKmPerLaunch = quickLaunchesCount > 0 ? summary.totalKm / quickLaunchesCount : 0;
@@ -110,6 +113,7 @@ const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config, onAddEn
       totalFuelSpent,
       totalFoodSpent,
       totalMaintenanceSpent,
+      totalOthersSpent,
       filteredEntries,
       uniqueStores,
       storeDeliveries,
@@ -120,7 +124,7 @@ const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config, onAddEn
   }, [entries, timeEntries, startDate, endDate, selectedStore]);
 
   const exportToCSV = () => {
-    const headers = ['Data', 'Hora', 'Loja/Descrição', 'Bruto', 'Combustível', 'Alimentação', 'Manutenção', 'Líquido', 'KM Rodados', 'Pagamento'];
+    const headers = ['Data', 'Hora', 'Loja/Descrição', 'Bruto', 'Combustível', 'Alimentação', 'Manutenção', 'Outros', 'Líquido', 'KM Rodados', 'Pagamento'];
     const rows = reportData.filteredEntries.map(e => [
       e.date,
       e.time,
@@ -129,6 +133,7 @@ const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config, onAddEn
       e.fuel,
       e.food,
       e.maintenance,
+      e.others || 0,
       e.netAmount,
       e.kmDriven || '',
       e.paymentMethod || ''
@@ -450,7 +455,7 @@ const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config, onAddEn
       {/* Detalhamento de Gastos Reais */}
       <motion.div variants={itemVariants} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800">
         <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest mb-8">Fluxo de Despesas Reais</h4>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="p-6 bg-rose-50 dark:bg-rose-500/10 rounded-[2rem] border border-rose-100 dark:border-rose-500/20 flex flex-col justify-between h-32">
             <div className="flex justify-between items-start">
               <Fuel size={20} className="text-rose-500 dark:text-rose-400" />
@@ -471,6 +476,13 @@ const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config, onAddEn
               <span className="text-[10px] font-black text-blue-400 dark:text-blue-500 uppercase">Manutenção</span>
             </div>
             <p className="text-2xl font-black text-blue-700 dark:text-blue-300 font-mono-num">{formatCurrency(reportData.totalMaintenanceSpent)}</p>
+          </div>
+          <div className="p-6 bg-slate-50 dark:bg-slate-500/10 rounded-[2rem] border border-slate-100 dark:border-slate-500/20 flex flex-col justify-between h-32">
+            <div className="flex justify-between items-start">
+              <MoreHorizontal size={20} className="text-slate-500 dark:text-slate-400" />
+              <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase">Outros</span>
+            </div>
+            <p className="text-2xl font-black text-slate-700 dark:text-slate-300 font-mono-num">{formatCurrency(reportData.totalOthersSpent)}</p>
           </div>
         </div>
       </motion.div>

@@ -12,7 +12,8 @@ import {
   Calendar, 
   ChevronRight,
   PieChart as PieChartIcon,
-  TrendingDown
+  TrendingDown,
+  MoreHorizontal
 } from 'lucide-react';
 import QuickExpense from './QuickExpense';
 
@@ -32,19 +33,22 @@ const Expenses: React.FC<ExpensesProps> = ({ entries, config, onEdit, onAdd }) =
     fuel: incomeEntries.reduce((acc, curr) => acc + curr.fuel, 0),
     food: incomeEntries.reduce((acc, curr) => acc + curr.food, 0),
     maintenance: incomeEntries.reduce((acc, curr) => acc + curr.maintenance, 0),
+    others: incomeEntries.reduce((acc, curr) => acc + (curr.others || 0), 0),
   };
 
   const actualSpent = {
     fuel: manualExpenseEntries.reduce((acc, curr) => acc + curr.fuel, 0),
     food: manualExpenseEntries.reduce((acc, curr) => acc + curr.food, 0),
     maintenance: manualExpenseEntries.reduce((acc, curr) => acc + curr.maintenance, 0),
+    others: manualExpenseEntries.reduce((acc, curr) => acc + (curr.others || 0), 0),
   };
 
   const balances = {
     fuel: reserves.fuel - actualSpent.fuel,
     food: reserves.food - actualSpent.food,
     maintenance: reserves.maintenance - actualSpent.maintenance,
-    total: (reserves.fuel + reserves.food + reserves.maintenance) - (actualSpent.fuel + actualSpent.food + actualSpent.maintenance)
+    others: reserves.others - actualSpent.others,
+    total: (reserves.fuel + reserves.food + reserves.maintenance + reserves.others) - (actualSpent.fuel + actualSpent.food + actualSpent.maintenance + actualSpent.others)
   };
 
   const totalReservedPerc = (config.percFuel + config.percFood + config.percMaintenance) * 100;
@@ -76,6 +80,15 @@ const Expenses: React.FC<ExpensesProps> = ({ entries, config, onEdit, onAdd }) =
       spent: actualSpent.maintenance, 
       bal: balances.maintenance,
       icon: <Wrench size={20} />
+    },
+    { 
+      name: 'Outros', 
+      key: 'others', 
+      color: '#64748b', // Slate 500
+      allocated: reserves.others, 
+      spent: actualSpent.others, 
+      bal: balances.others,
+      icon: <MoreHorizontal size={20} />
     },
   ];
 
@@ -128,11 +141,11 @@ const Expenses: React.FC<ExpensesProps> = ({ entries, config, onEdit, onAdd }) =
           <div className="grid grid-cols-2 gap-8 pt-8 border-t border-white/10">
             <div className="space-y-1">
               <span className="text-[9px] font-black uppercase tracking-widest opacity-60 block">Total Reservado</span>
-              <p className="text-2xl font-black font-mono-num">{formatCurrency(reserves.fuel + reserves.food + reserves.maintenance)}</p>
+              <p className="text-2xl font-black font-mono-num">{formatCurrency(reserves.fuel + reserves.food + reserves.maintenance + reserves.others)}</p>
             </div>
             <div className="text-right space-y-1">
               <span className="text-[9px] font-black uppercase tracking-widest opacity-60 block">Total Gasto Real</span>
-              <p className="text-2xl font-black text-white/90 font-mono-num">-{formatCurrency(actualSpent.fuel + actualSpent.food + actualSpent.maintenance)}</p>
+              <p className="text-2xl font-black text-white/90 font-mono-num">-{formatCurrency(actualSpent.fuel + actualSpent.food + actualSpent.maintenance + actualSpent.others)}</p>
             </div>
           </div>
         </div>
@@ -210,11 +223,11 @@ const Expenses: React.FC<ExpensesProps> = ({ entries, config, onEdit, onAdd }) =
                     </div>
                     <div className="text-right">
                       <span className="text-[9px] font-black text-rose-400 dark:text-rose-500 uppercase tracking-widest block">Custo Total</span>
-                      <p className="text-xl font-black text-rose-600 dark:text-rose-400 font-mono-num">{formatCurrency(week.spentFuel + week.spentFood + week.spentMaintenance)}</p>
+                      <p className="text-xl font-black text-rose-600 dark:text-rose-400 font-mono-num">{formatCurrency(week.spentFuel + week.spentFood + week.spentMaintenance + (week.spentOthers || 0))}</p>
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-4 gap-2">
                      <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100/50 dark:border-slate-800 flex flex-col items-center">
                         <Fuel size={14} className="text-rose-400 dark:text-rose-500 mb-1" />
                         <span className="text-[11px] font-black text-slate-700 dark:text-slate-200 font-mono-num">{formatCurrency(week.spentFuel).replace('R$', '')}</span>
@@ -226,6 +239,10 @@ const Expenses: React.FC<ExpensesProps> = ({ entries, config, onEdit, onAdd }) =
                      <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100/50 dark:border-slate-800 flex flex-col items-center">
                         <Wrench size={14} className="text-blue-400 dark:text-blue-500 mb-1" />
                         <span className="text-[11px] font-black text-slate-700 dark:text-slate-200 font-mono-num">{formatCurrency(week.spentMaintenance).replace('R$', '')}</span>
+                     </div>
+                     <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100/50 dark:border-slate-800 flex flex-col items-center">
+                        <MoreHorizontal size={14} className="text-slate-400 dark:text-slate-500 mb-1" />
+                        <span className="text-[11px] font-black text-slate-700 dark:text-slate-200 font-mono-num">{formatCurrency(week.spentOthers || 0).replace('R$', '')}</span>
                      </div>
                   </div>
                 </div>

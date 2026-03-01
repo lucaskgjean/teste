@@ -61,6 +61,7 @@ const Dashboard: React.FC<DashboardProps> = ({ entries, config, onEdit, onDelete
     { name: `Combustível`, value: generalSum.totalFuel, color: '#f43f5e' }, // Rose 500
     { name: `Alimentação`, value: generalSum.totalFood, color: '#f59e0b' }, // Amber 500
     { name: `Manutenção`, value: generalSum.totalMaintenance, color: '#3b82f6' }, // Blue 500
+    { name: `Outros`, value: generalSum.totalOthers || 0, color: '#64748b' }, // Slate 500
     { name: `Líquido`, value: generalSum.totalNet, color: '#10b981' }, // Emerald 500
   ];
 

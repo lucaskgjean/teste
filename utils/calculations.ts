@@ -52,6 +52,7 @@ export const calculateDailyEntry = (
     fuel,
     food,
     maintenance,
+    others: 0,
     netAmount: net,
     kmDriven,
     fuelPrice,
@@ -66,7 +67,7 @@ export const calculateDailyEntry = (
  */
 export const calculateManualExpense = (
   amount: number,
-  category: 'fuel' | 'food' | 'maintenance',
+  category: 'fuel' | 'food' | 'maintenance' | 'others',
   date: string,
   time: string,
   description: string,
@@ -83,6 +84,7 @@ export const calculateManualExpense = (
     fuel: category === 'fuel' ? amount : 0,
     food: category === 'food' ? amount : 0,
     maintenance: category === 'maintenance' ? amount : 0,
+    others: category === 'others' ? amount : 0,
     netAmount: -amount,
     kmAtMaintenance,
     paymentMethod,
@@ -106,12 +108,14 @@ export const getWeeklySummary = (entries: DailyEntry[]): WeeklySummary => {
   const reservedFuel = incomeEntries.reduce((acc, curr) => acc + curr.fuel, 0);
   const reservedFood = incomeEntries.reduce((acc, curr) => acc + curr.food, 0);
   const reservedMaintenance = incomeEntries.reduce((acc, curr) => acc + curr.maintenance, 0);
-  const totalFees = reservedFuel + reservedFood + reservedMaintenance;
+  const reservedOthers = incomeEntries.reduce((acc, curr) => acc + (curr.others || 0), 0);
+  const totalFees = reservedFuel + reservedFood + reservedMaintenance + reservedOthers;
 
   // Gastos Reais
   const spentFuel = expenseEntries.reduce((acc, curr) => acc + curr.fuel, 0);
   const spentFood = expenseEntries.reduce((acc, curr) => acc + curr.food, 0);
   const spentMaintenance = expenseEntries.reduce((acc, curr) => acc + curr.maintenance, 0);
+  const spentOthers = expenseEntries.reduce((acc, curr) => acc + (curr.others || 0), 0);
   const totalKm = entries.reduce((acc, curr) => acc + (curr.kmDriven || 0), 0);
   const totalLiters = expenseEntries.reduce((acc, curr) => acc + (curr.liters || 0), 0);
 
@@ -119,7 +123,8 @@ export const getWeeklySummary = (entries: DailyEntry[]): WeeklySummary => {
   const excessFuel = Math.max(0, spentFuel - reservedFuel);
   const excessFood = Math.max(0, spentFood - reservedFood);
   const excessMaintenance = Math.max(0, spentMaintenance - reservedMaintenance);
-  const totalExcess = excessFuel + excessFood + excessMaintenance;
+  const excessOthers = Math.max(0, spentOthers - reservedOthers);
+  const totalExcess = excessFuel + excessFood + excessMaintenance + excessOthers;
 
   const totalNet = totalGross - totalFees - totalExcess;
 
@@ -129,9 +134,11 @@ export const getWeeklySummary = (entries: DailyEntry[]): WeeklySummary => {
     totalFuel: reservedFuel,
     totalFood: reservedFood,
     totalMaintenance: reservedMaintenance,
+    totalOthers: reservedOthers,
     totalSpentFuel: spentFuel,
     totalSpentFood: spentFood,
     totalSpentMaintenance: spentMaintenance,
+    totalSpentOthers: spentOthers,
     totalFees: totalFees + totalExcess,
     totalKm,
     totalLiters
@@ -166,6 +173,7 @@ export const getWeeklyGroupedSummaries = (entries: DailyEntry[]) => {
       spentFuel: summary.totalSpentFuel,
       spentFood: summary.totalSpentFood,
       spentMaintenance: summary.totalSpentMaintenance,
+      spentOthers: summary.totalSpentOthers,
       entries: weekEntries.length,
       startDate: firstDate,
       endDate: lastDate
@@ -222,7 +230,7 @@ export const calculateFuelMetrics = (entries: DailyEntry[]) => {
  * Gera um arquivo CSV com todos os lançamentos
  */
 export const entriesToCSV = (entries: DailyEntry[]): string => {
-  const headers = ['Data', 'Hora', 'Estabelecimento', 'Valor Bruto', 'Reserva Combustível', 'Reserva Alimentação', 'Reserva Manutenção', 'Valor Líquido', 'KM Rodado', 'Preço Gasolina'];
+  const headers = ['Data', 'Hora', 'Estabelecimento', 'Valor Bruto', 'Reserva Combustível', 'Reserva Alimentação', 'Reserva Manutenção', 'Outros', 'Valor Líquido', 'KM Rodado', 'Preço Gasolina'];
   const rows = entries.map(e => [
     e.date,
     e.time,
@@ -231,6 +239,7 @@ export const entriesToCSV = (entries: DailyEntry[]): string => {
     e.fuel.toFixed(2),
     e.food.toFixed(2),
     e.maintenance.toFixed(2),
+    (e.others || 0).toFixed(2),
     e.netAmount.toFixed(2),
     (e.kmDriven || 0).toString(),
     (e.fuelPrice || 0).toString()

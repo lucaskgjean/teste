@@ -8,6 +8,7 @@ export interface DailyEntry {
   fuel: number;        
   food: number;        
   maintenance: number; 
+  others: number;
   netAmount: number;   
   kmDriven?: number;
   fuelPrice?: number;
@@ -15,7 +16,7 @@ export interface DailyEntry {
   kmAtMaintenance?: number; // KM no momento da manutenção
   paymentMethod?: 'money' | 'pix' | 'debito' | 'caderno';
   isPaid?: boolean;
-  category?: 'income' | 'fuel' | 'food' | 'maintenance';
+  category?: 'income' | 'fuel' | 'food' | 'maintenance' | 'others';
 }
 
 export interface WeeklySummary {
@@ -24,9 +25,11 @@ export interface WeeklySummary {
   totalFuel: number;
   totalFood: number;
   totalMaintenance: number;
+  totalOthers: number;
   totalSpentFuel: number;
   totalSpentFood: number;
   totalSpentMaintenance: number;
+  totalSpentOthers: number;
   totalFees: number;
   totalKm?: number;
   totalLiters?: number;

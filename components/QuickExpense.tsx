@@ -14,7 +14,8 @@ import {
   Navigation,
   Save,
   Tag,
-  FileText
+  FileText,
+  MoreHorizontal
 } from 'lucide-react';
 
 interface QuickExpenseProps {
@@ -30,7 +31,7 @@ const QuickExpense: React.FC<QuickExpenseProps> = ({ onAdd }) => {
   const [amount, setAmount] = useState<string>('');
   const [liters, setLiters] = useState<string>('');
   const [description, setDescription] = useState<string>('');
-  const [category, setCategory] = useState<'fuel' | 'food' | 'maintenance'>('fuel');
+  const [category, setCategory] = useState<'fuel' | 'food' | 'maintenance' | 'others'>('fuel');
   const [time, setTime] = useState<string>(getCurrentTime());
   const [date, setDate] = useState<string>(getLocalDateStr());
   const [kmAtMaintenance, setKmAtMaintenance] = useState<string>('');
@@ -60,6 +61,7 @@ const QuickExpense: React.FC<QuickExpenseProps> = ({ onAdd }) => {
     fuel: { color: 'rose', icon: <Fuel size={18} />, label: 'Combustível' },
     food: { color: 'amber', icon: <Utensils size={18} />, label: 'Alimentação' },
     maintenance: { color: 'blue', icon: <Wrench size={18} />, label: 'Manutenção' },
+    others: { color: 'slate', icon: <MoreHorizontal size={18} />, label: 'Outros' },
   };
 
   return (
@@ -82,7 +84,7 @@ const QuickExpense: React.FC<QuickExpenseProps> = ({ onAdd }) => {
             <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">
               <Tag size={12} /> Categoria
             </label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {(Object.keys(categoryConfig) as Array<keyof typeof categoryConfig>).map(cat => (
                   <button 
                     key={cat}

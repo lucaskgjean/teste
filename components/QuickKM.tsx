@@ -42,6 +42,7 @@ const QuickKM: React.FC<QuickKMProps> = ({ onAdd, config }) => {
       fuel: 0,
       food: 0,
       maintenance: 0,
+      others: 0,
       netAmount: 0,
       kmDriven: kmDriven,
       kmAtMaintenance: numTotalKm, 

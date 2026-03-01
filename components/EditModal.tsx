@@ -14,7 +14,7 @@ const EditModal: React.FC<EditModalProps> = ({ entry, config, onSave, onClose })
   const isIncome = entry.grossAmount > 0;
   
   const [amount, setAmount] = useState<string>(
-    isIncome ? entry.grossAmount.toString() : (entry.fuel + entry.food + entry.maintenance).toString()
+    isIncome ? entry.grossAmount.toString() : (entry.fuel + entry.food + entry.maintenance + (entry.others || 0)).toString()
   );
   const [description, setDescription] = useState<string>(
     isIncome ? entry.storeName : entry.storeName.replace('[GASTO] ', '')
@@ -27,8 +27,8 @@ const EditModal: React.FC<EditModalProps> = ({ entry, config, onSave, onClose })
   const [liters, setLiters] = useState<string>(entry.liters?.toString() || '');
   const [paymentMethod, setPaymentMethod] = useState<'money' | 'pix' | 'debito' | 'caderno'>(entry.paymentMethod || 'pix');
   const [isPaid, setIsPaid] = useState<boolean>(entry.isPaid || false);
-  const [category, setCategory] = useState<'fuel' | 'food' | 'maintenance'>(
-    entry.fuel > 0 ? 'fuel' : entry.food > 0 ? 'food' : 'maintenance'
+  const [category, setCategory] = useState<'fuel' | 'food' | 'maintenance' | 'others'>(
+    entry.fuel > 0 ? 'fuel' : entry.food > 0 ? 'food' : entry.maintenance > 0 ? 'maintenance' : 'others'
   );
 
   const handleSave = (e: React.FormEvent) => {
@@ -100,11 +100,12 @@ const EditModal: React.FC<EditModalProps> = ({ entry, config, onSave, onClose })
                 className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-700 dark:text-slate-200 font-bold focus:border-indigo-500 outline-none transition-all"
               />
             ) : (
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {[
                   { id: 'fuel', label: 'Comb.', color: 'bg-red-500' },
                   { id: 'food', label: 'Alim.', color: 'bg-orange-500' },
-                  { id: 'maintenance', label: 'Manut.', color: 'bg-blue-500' }
+                  { id: 'maintenance', label: 'Manut.', color: 'bg-blue-500' },
+                  { id: 'others', label: 'Outros.', color: 'bg-slate-500' }
                 ].map(cat => (
                   <button
                     key={cat.id} type="button"
