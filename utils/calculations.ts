@@ -13,6 +13,17 @@ export const generateId = (): string => {
 };
 
 /**
+ * Retorna a data atual no formato YYYY-MM-DD respeitando o fuso horário local
+ */
+export const getLocalDateStr = (): string => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+/**
  * Lógica de processamento de entrada diária:
  * Usa a configuração dinâmica enviada pelo App.
  */

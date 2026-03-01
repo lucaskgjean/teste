@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { DailyEntry, AppConfig } from '../types';
-import { formatCurrency, getWeeklySummary, calculateFuelMetrics } from '../utils/calculations';
+import { formatCurrency, getWeeklySummary, calculateFuelMetrics, getLocalDateStr } from '../utils/calculations';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { motion } from 'framer-motion';
 import { 
@@ -29,7 +29,7 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ entries, config, onEdit, onDelete, onNavigate, onAdd }) => {
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getLocalDateStr();
   const currentMonthStr = todayStr.substring(0, 7);
 
   const getStartOfWeek = (d: Date) => {

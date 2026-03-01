@@ -26,10 +26,11 @@ import {
   Settings as SettingsIcon,
   ChevronRight,
   Moon,
-  Sun
+  Sun,
+  RefreshCw
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { generateId } from './utils/calculations';
+import { generateId, getLocalDateStr } from './utils/calculations';
 
 import { storageService } from './services/storageService';
 
@@ -115,6 +116,27 @@ const App: React.FC = () => {
     initApp();
   }, []);
 
+  const refreshData = async () => {
+    setIsSaving(true);
+    try {
+      const [savedEntries, savedTimeEntries, savedConfig] = await Promise.all([
+        storageService.getEntries(),
+        storageService.getTimeEntries(),
+        storageService.getConfig()
+      ]);
+
+      setEntries(savedEntries.map(entry => ({ ...entry, id: entry.id || generateId() })));
+      setTimeEntries(savedTimeEntries);
+      if (savedConfig) setConfig(savedConfig);
+      
+      showToast("Dados atualizados!");
+    } catch (e) {
+      showToast("Erro ao atualizar dados.", "error");
+    } finally {
+      setTimeout(() => setIsSaving(false), 500);
+    }
+  };
+
   // Persistência Assíncrona com Feedback
   useEffect(() => {
     if (isLoading) return; // Evita salvar durante o carregamento inicial
@@ -147,7 +169,7 @@ const App: React.FC = () => {
   };
 
   const addEntry = (entry: DailyEntry) => {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateStr();
     const todayGrossBefore = entries
       .filter(e => e.date === todayStr)
       .reduce((acc, curr) => acc + curr.grossAmount, 0);
@@ -297,6 +319,13 @@ const App: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <button 
+              onClick={refreshData}
+              className={`p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-400 hover:text-indigo-600 transition-all ${isSaving ? 'animate-spin text-indigo-600' : ''}`}
+              title="Atualizar dados"
+            >
+              <RefreshCw size={20} />
+            </button>
             <button 
               onClick={toggleDarkMode}
               className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-400 hover:text-indigo-600 transition-colors"
