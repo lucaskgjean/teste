@@ -2,6 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { AppConfig, DEFAULT_CONFIG, DailyEntry, TimeEntry } from '../types';
 import { formatCurrency, entriesToCSV } from '../utils/calculations';
+import { Sun, Moon, Monitor, Settings as SettingsIcon } from 'lucide-react';
 
 interface SettingsProps {
   config: AppConfig;
@@ -22,6 +23,10 @@ const Settings: React.FC<SettingsProps> = ({ config, entries, timeEntries, onCha
     } else {
       onChange({ ...config, [key]: num / 100 });
     }
+  };
+
+  const handleThemeChange = (mode: 'light' | 'dark' | 'auto') => {
+    onChange({ ...config, themeMode: mode });
   };
 
   const handleExportCSV = () => {
@@ -116,6 +121,38 @@ const Settings: React.FC<SettingsProps> = ({ config, entries, timeEntries, onCha
 
   return (
     <div className="space-y-4 max-w-2xl mx-auto pb-10">
+      {/* CABEÇALHO DA PÁGINA */}
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200 dark:shadow-none">
+          <SettingsIcon size={24} />
+        </div>
+        <div>
+          <h2 className="text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Configurações</h2>
+          <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Gerencie sua conta e preferências</p>
+        </div>
+      </div>
+
+      {/* CARD: APARÊNCIA (NOVO) */}
+      <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800">
+        <h3 className="text-xl font-black text-slate-800 dark:text-white mb-4">Aparência</h3>
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { id: 'light', label: 'Diurno', icon: <Sun size={18} /> },
+            { id: 'dark', label: 'Noturno', icon: <Moon size={18} /> },
+            { id: 'auto', label: 'Auto', icon: <Monitor size={18} /> }
+          ].map(mode => (
+            <button
+              key={mode.id}
+              onClick={() => handleThemeChange(mode.id as any)}
+              className={`flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 transition-all ${config.themeMode === mode.id ? 'bg-indigo-600 dark:bg-indigo-500 border-indigo-600 dark:border-indigo-500 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-800 border-slate-50 dark:border-slate-800 text-slate-400 dark:text-slate-500 hover:border-slate-200 dark:hover:border-slate-700'}`}
+            >
+              {mode.icon}
+              <span className="text-[10px] font-black uppercase tracking-widest">{mode.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* CARD: SOBRE O APP E TUTORIAL */}
       <div className="bg-indigo-900 p-6 rounded-[2.5rem] text-white shadow-xl relative overflow-hidden border-4 border-indigo-500/30">
         <div className="relative z-10">

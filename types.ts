@@ -59,6 +59,7 @@ export interface AppConfig {
   lastFuelPrice?: number;
   lastTotalKm?: number;
   maintenanceAlerts?: MaintenanceAlert[];
+  themeMode?: 'light' | 'dark' | 'auto';
 }
 
 export const DEFAULT_CONFIG: AppConfig = {
@@ -68,6 +69,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   dailyGoal: 250,       // Meta padrão de R$ 250
   lastFuelPrice: 5.50,   // Valor base sugerido
   lastTotalKm: 0,
+  themeMode: 'auto',
   maintenanceAlerts: [
     { id: '1', description: 'Troca de Óleo', kmInterval: 10000, lastKm: 0 },
     { id: '2', description: 'Pneus', kmInterval: 40000, lastKm: 0 },

@@ -44,36 +44,44 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-  const [darkMode, setDarkMode] = useState<boolean>(false);
 
   // Scroll to top on tab change
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [activeTab]);
 
-  // Dark Mode detection and application
+  // Theme application
   useEffect(() => {
-    const isDark = localStorage.getItem('darkMode') === 'true';
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    
-    if (isDark || (localStorage.getItem('darkMode') === null && prefersDark)) {
-      setDarkMode(true);
-      document.documentElement.classList.add('dark');
-    }
-  }, []);
+    const applyTheme = () => {
+      const mode = config.themeMode || 'auto';
+      let isDark = false;
 
-  const toggleDarkMode = () => {
-    setDarkMode(prev => {
-      const newVal = !prev;
-      if (newVal) {
+      if (mode === 'dark') {
+        isDark = true;
+      } else if (mode === 'light') {
+        isDark = false;
+      } else {
+        // Auto mode
+        isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      }
+
+      if (isDark) {
         document.documentElement.classList.add('dark');
       } else {
         document.documentElement.classList.remove('dark');
       }
-      localStorage.setItem('darkMode', newVal.toString());
-      return newVal;
-    });
-  };
+    };
+
+    applyTheme();
+
+    // Listen for system theme changes if in auto mode
+    if (config.themeMode === 'auto') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const handleChange = () => applyTheme();
+      mediaQuery.addEventListener('change', handleChange);
+      return () => mediaQuery.removeEventListener('change', handleChange);
+    }
+  }, [config.themeMode]);
 
   // Carregamento Inicial Assíncrono (IndexedDB)
   useEffect(() => {
@@ -332,13 +340,7 @@ const App: React.FC = () => {
             >
               <RefreshCw size={20} />
             </button>
-            <button 
-              onClick={toggleDarkMode}
-              className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-400 hover:text-indigo-600 transition-colors"
-            >
-              {darkMode ? <Sun size={20} /> : <Moon size={20} />}
-            </button>
-            <button onClick={() => setActiveTab('settings')} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-400 hover:text-indigo-600 transition-colors">
+            <button onClick={() => setActiveTab('settings')} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-400 hover:text-indigo-600 transition-colors" title="Configurações">
               <SettingsIcon size={20} />
             </button>
           </div>
@@ -370,7 +372,7 @@ const App: React.FC = () => {
         </AnimatePresence>
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 glass-nav md:hidden pb-safe z-50 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.3)]">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-t border-slate-100 dark:border-slate-800 md:hidden pb-safe z-50 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.3)]">
         <div className="flex justify-around items-center h-20 px-2">
           {[
             { id: 'dashboard', label: 'Início', icon: <Home size={22} /> },
@@ -378,8 +380,7 @@ const App: React.FC = () => {
             { id: 'maintenance', label: 'Manut.', icon: <Wrench size={22} /> },
             { id: 'ponto', label: 'Ponto', icon: <Clock size={22} /> },
             { id: 'reports', label: 'Relat.', icon: <BarChart3 size={22} /> },
-            { id: 'history', label: 'Histórico', icon: <HistoryIcon size={22} /> },
-            { id: 'settings', label: 'Perfil', icon: <User size={22} /> }
+            { id: 'history', label: 'Histórico', icon: <HistoryIcon size={22} /> }
           ].map((item) => (
             <button key={item.id} onClick={() => setActiveTab(item.id as any)} className="flex flex-col items-center flex-1 py-1 group relative">
               <div className={`w-12 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${activeTab === item.id ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400' : 'text-slate-400'}`}>

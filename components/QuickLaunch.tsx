@@ -41,7 +41,7 @@ const QuickLaunch: React.FC<QuickLaunchProps> = ({ onAdd, existingEntries, confi
     ? allStores 
     : allStores.filter(s => s.toLowerCase().includes(storeName.toLowerCase()));
 
-  const suggestionAmounts = [6, 7, 8, 10, 15];
+  const suggestionAmounts = [6, 7, 8, 10, 12, 17, 18, 22, 25, 30, 40];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,13 +137,13 @@ const QuickLaunch: React.FC<QuickLaunchProps> = ({ onAdd, existingEntries, confi
                 required
               />
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex overflow-x-auto gap-2 pb-2 scrollbar-hide -mx-1 px-1">
               {suggestionAmounts.map(val => (
                 <button
                   key={val}
                   type="button"
                   onClick={() => setAmount(val.toString())}
-                  className={`text-[10px] font-black w-10 h-10 rounded-xl transition-all flex items-center justify-center ${amount === val.toString() ? 'bg-indigo-600 dark:bg-indigo-500 text-white shadow-md' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                  className={`text-[10px] font-black w-10 h-10 rounded-xl transition-all flex items-center justify-center flex-shrink-0 ${amount === val.toString() ? 'bg-indigo-600 dark:bg-indigo-500 text-white shadow-md' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
                 >
                   {val}
                 </button>

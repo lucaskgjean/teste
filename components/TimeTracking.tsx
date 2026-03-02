@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { TimeEntry } from '../types';
 import { generateId, calculateDuration, formatDuration, getLocalDateStr } from '../utils/calculations';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -24,12 +24,26 @@ interface TimeTrackingProps {
 
 const TimeTracking: React.FC<TimeTrackingProps> = ({ timeEntries, onAdd, onUpdate, onDelete }) => {
   const today = getLocalDateStr();
-  const currentTime = new Date().toTimeString().slice(0, 5);
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(new Date());
+    }, 30000); // Atualiza a cada 30 segundos para precisão visual
+    return () => clearInterval(interval);
+  }, []);
+
+  const currentTime = now.toTimeString().slice(0, 5);
 
   const activeEntry = useMemo(() => 
     timeEntries.find(e => e.date === today && !e.endTime),
     [timeEntries, today]
   );
+
+  const activeDuration = useMemo(() => {
+    if (!activeEntry) return 0;
+    return calculateDuration(activeEntry.startTime, currentTime, 0);
+  }, [activeEntry, currentTime]);
 
   const [breakInput, setBreakInput] = useState<string>('0');
   const [notesInput, setNotesInput] = useState<string>('');
@@ -108,7 +122,7 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({ timeEntries, onAdd, onUpdat
             </div>
             <div className="flex items-center gap-2 mt-3 justify-center md:justify-start">
               <span className="text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-tight">Hoje acumulado:</span>
-              <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 font-mono-num">{formatDuration(dailyTotals[today] || 0)}</span>
+              <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 font-mono-num">{formatDuration((dailyTotals[today] || 0) + activeDuration)}</span>
             </div>
           </div>
 

@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { DailyEntry, AppConfig, TimeEntry } from '../types';
 import { formatCurrency, getWeeklySummary, calculateDuration, formatDuration, getLocalDateStr } from '../utils/calculations';
 import { motion } from 'framer-motion';
@@ -35,6 +35,17 @@ interface ReportsProps {
 
 const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config, onAddEntry }) => {
   const today = getLocalDateStr();
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(new Date());
+    }, 60000); // Atualiza a cada minuto
+    return () => clearInterval(interval);
+  }, []);
+
+  const currentTime = now.toTimeString().slice(0, 5);
+
   const [startDate, setStartDate] = useState<string>(today);
   const [endDate, setEndDate] = useState<string>(today);
   const [selectedStore, setSelectedStore] = useState<string>('all');
@@ -80,6 +91,9 @@ const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config, onAddEn
     const totalMinutes = filteredTime.reduce((acc, curr) => {
       if (curr.startTime && curr.endTime) {
         return acc + calculateDuration(curr.startTime, curr.endTime, curr.breakDuration || 0);
+      } else if (curr.startTime && !curr.endTime && curr.date === today) {
+        // Se o turno está ativo e é hoje, conta o tempo até agora
+        return acc + calculateDuration(curr.startTime, currentTime, 0);
       }
       return acc;
     }, 0);
@@ -121,7 +135,7 @@ const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config, onAddEn
       expenseTotalsByMethod,
       expenseTotalsByCategory
     };
-  }, [entries, timeEntries, startDate, endDate, selectedStore]);
+  }, [entries, timeEntries, startDate, endDate, selectedStore, currentTime]);
 
   const exportToCSV = () => {
     const headers = ['Data', 'Hora', 'Loja/Descrição', 'Bruto', 'Combustível', 'Alimentação', 'Manutenção', 'Outros', 'Líquido', 'KM Rodados', 'Pagamento'];
