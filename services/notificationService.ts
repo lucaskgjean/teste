@@ -3,12 +3,15 @@ import { CustomNotification } from '../types';
 
 class NotificationService {
   async requestPermission(): Promise<boolean> {
-    // 1. Tenta a ponte nativa do Median (GoNative) se estiver no APK
     const isMedian = (window as any).gonative || (window as any).median || navigator.userAgent.includes('gonative');
+    
+    // 1. Tenta a ponte nativa do Median (GoNative) se estiver no APK
     if (isMedian) {
       try {
-        // Comando universal do Median para registrar notificações e pedir permissão nativa
         window.location.href = 'gonative://notifications/register';
+        // No Median, muitas vezes não conseguimos esperar o retorno síncrono da permissão web
+        // Retornamos true para permitir que o usuário ative a interface no app
+        return true; 
       } catch (e) {
         console.error('Erro ao chamar ponte Median:', e);
       }
@@ -17,19 +20,21 @@ class NotificationService {
     // 2. Tenta o método padrão da Web
     if (!('Notification' in window)) {
       console.log('Este navegador não suporta notificações desktop');
-      return false;
+      // Se for mobile mas não suportar a API Notification, permitimos ativar a lógica interna
+      return isMedian; 
     }
 
     if (Notification.permission === 'granted') {
       return true;
     }
 
-    if (Notification.permission !== 'denied') {
+    try {
       const permission = await Notification.requestPermission();
       return permission === 'granted';
+    } catch (e) {
+      // Alguns navegadores mobile antigos lançam erro no requestPermission
+      return isMedian;
     }
-
-    return false;
   }
 
   sendNotification(title: string, options?: NotificationOptions) {

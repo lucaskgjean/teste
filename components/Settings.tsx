@@ -121,13 +121,19 @@ const Settings: React.FC<SettingsProps> = ({ config, entries, timeEntries, onCha
   const toggleNotifications = async () => {
     if (!config.notificationsEnabled) {
       const granted = await notificationService.requestPermission();
-      if (granted) {
+      // Se for Median ou se a permissão for concedida, ativamos
+      if (granted || navigator.userAgent.includes('gonative')) {
         onChange({ ...config, notificationsEnabled: true });
-        notificationService.sendNotification("Notificações Ativadas!", {
-          body: "Você agora receberá alertas do RotaFinanceira."
-        });
+        setTimeout(() => {
+          notificationService.sendNotification("Notificações Ativadas!", {
+            body: "Você agora receberá alertas do RotaFinanceira."
+          });
+        }, 500);
       } else {
-        alert("Para ativar as notificações, você precisa permitir nas configurações do seu navegador/celular.");
+        // Fallback: Pergunta se o usuário quer forçar a ativação se ele já ativou no Android
+        if (window.confirm("Não conseguimos detectar a permissão do navegador. Se você já ativou as notificações nas configurações do Android, deseja ativar o controle interno do app mesmo assim?")) {
+          onChange({ ...config, notificationsEnabled: true });
+        }
       }
     } else {
       onChange({ ...config, notificationsEnabled: false });
@@ -223,7 +229,7 @@ const Settings: React.FC<SettingsProps> = ({ config, entries, timeEntries, onCha
           </button>
         </div>
 
-        {config.notificationsEnabled && (
+        {config.notificationsEnabled ? (
           <div className="space-y-6 animate-in fade-in slide-in-from-top-2">
             <div className="flex justify-between items-center">
               <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Lembretes Personalizados</p>
@@ -306,6 +312,11 @@ const Settings: React.FC<SettingsProps> = ({ config, entries, timeEntries, onCha
                 </div>
               )}
             </div>
+          </div>
+        ) : (
+          <div className="p-8 text-center bg-slate-50 dark:bg-slate-800/30 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800">
+            <Bell size={32} className="mx-auto text-slate-300 dark:text-slate-700 mb-3" />
+            <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Ative as notificações acima para configurar seus lembretes personalizados</p>
           </div>
         )}
       </div>
