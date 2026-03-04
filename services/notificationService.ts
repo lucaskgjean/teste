@@ -2,28 +2,15 @@
 import { CustomNotification } from '../types';
 
 class NotificationService {
-  // Método para verificar o status técnico (ajuda no diagnóstico)
-  getDebugInfo() {
-    const isMedian = !!((window as any).gonative || (window as any).median || navigator.userAgent.includes('gonative'));
-    const hasOneSignal = !!((window as any).gonative?.oneSignal || (window as any).OneSignal);
-    const hasNotifications = !!((window as any).gonative?.notifications || (window as any).median?.notifications);
-    const permission = (window as any).Notification?.permission || 'unknown';
-    
-    return {
-      isMedian,
-      hasOneSignal,
-      hasNotifications,
-      permission,
-      userAgent: navigator.userAgent.slice(0, 20) + '...'
-    };
+  constructor() {
+    // Escuta o evento de que a biblioteca do Median está pronta
+    window.addEventListener('gonative_library_ready', () => {
+      this.requestPermission();
+    });
   }
 
   private callMedian(url: string) {
-    console.log('Comando OneSignal/Android:', url);
-    
     const medianUrl = url.replace('gonative://', 'median://');
-    
-    // Tenta registrar no OneSignal via comando direto de URL
     const iframe1 = document.createElement('iframe');
     iframe1.setAttribute('src', url);
     iframe1.setAttribute('style', 'display: none;');
@@ -45,109 +32,34 @@ class NotificationService {
     
     if (isMedian) {
       try {
-        // Tenta registrar no OneSignal de todas as formas possíveis
         if ((window as any).gonative?.oneSignal) {
           (window as any).gonative.oneSignal.register();
         }
-        
         this.callMedian('gonative://onesignal/register');
-        this.callMedian('gonative://notifications/register');
-        
         return true; 
       } catch (e) {
-        console.error('Erro OneSignal Permission:', e);
+        console.error('Erro OneSignal:', e);
       }
     }
-
-    // 2. Tenta o método padrão da Web
-    if (!('Notification' in window)) {
-      console.log('Este navegador não suporta notificações desktop');
-      // Se for mobile mas não suportar a API Notification, permitimos ativar a lógica interna
-      return isMedian; 
-    }
-
-    if (Notification.permission === 'granted') {
-      return true;
-    }
-
-    try {
-      const permission = await Notification.requestPermission();
-      return permission === 'granted';
-    } catch (e) {
-      // Alguns navegadores mobile antigos lançam erro no requestPermission
-      return isMedian;
-    }
+    return false;
   }
 
   sendNotification(title: string, options?: NotificationOptions) {
     const isMedian = !!((window as any).gonative || (window as any).median || navigator.userAgent.includes('gonative'));
-    const icon = 'https://cdn-icons-png.flaticon.com/512/1165/1165961.png';
-
-    // 1. Se estiver no Median, tenta a ponte nativa para garantir que chegue no Android
     if (isMedian) {
-      try {
-        const titleEnc = encodeURIComponent(title);
-        const bodyEnc = encodeURIComponent(options?.body || '');
-        
-        // Tenta o método de objeto JS (se disponível)
-        if ((window as any).gonative?.notifications?.create) {
-          (window as any).gonative.notifications.create({ title, body: options?.body || '' });
-        }
-
-        // Tenta o método de notificação local (mais garantido para lembretes)
-        this.callMedian(`gonative://notifications/local/create?title=${titleEnc}&body=${bodyEnc}`);
-        
-        // Tenta também o método de notificação imediata como fallback
-        this.callMedian(`gonative://notifications/create?title=${titleEnc}&body=${bodyEnc}`);
-      } catch (e) {
-        console.error('Erro ao chamar ponte de notificação Median:', e);
-      }
-    }
-
-    if (!('Notification' in window)) return;
-    
-    if (Notification.permission === 'granted') {
-      // Tenta usar o ServiceWorker se disponível (melhor para Android/Median)
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.ready.then((registration) => {
-          registration.showNotification(title, {
-            icon: icon,
-            badge: icon,
-            vibrate: [100, 50, 100],
-            ...options,
-          } as any);
-        }).catch(() => {
-          // Fallback se o SW falhar
-          new Notification(title, { icon, ...options });
-        });
-      } else {
-        try {
-          new Notification(title, { icon, ...options });
-        } catch (e) {
-          console.error('Erro ao enviar notificação:', e);
-        }
-      }
+      const titleEnc = encodeURIComponent(title);
+      const bodyEnc = encodeURIComponent(options?.body || '');
+      this.callMedian(`gonative://notifications/create?title=${titleEnc}&body=${bodyEnc}`);
     }
   }
 
-  checkAndTriggerCustomNotifications(customNotifications: CustomNotification[]) {
-    const now = new Date();
-    const currentDay = now.getDay();
-    const currentTime = now.toTimeString().slice(0, 5);
+  // Mantido apenas para compatibilidade de tipos, mas sem lógica de disparo agendado
+  checkAndTriggerCustomNotifications(_customNotifications: CustomNotification[]) {
+    // Lógica removida a pedido do usuário
+  }
 
-    customNotifications.forEach(notif => {
-      if (notif.enabled && notif.time === currentTime && notif.days.includes(currentDay)) {
-        // Evita disparar múltiplas vezes no mesmo minuto
-        const lastTriggered = localStorage.getItem(`notif_last_${notif.id}`);
-        const todayStr = now.toISOString().split('T')[0];
-        const triggerKey = `${todayStr}_${currentTime}`;
-
-        if (lastTriggered !== triggerKey) {
-          this.sendNotification(notif.title, { body: notif.message });
-          localStorage.setItem(`notif_last_${notif.id}`, triggerKey);
-        }
-      }
-    });
+  getDebugInfo() {
+    return {};
   }
 }
 
