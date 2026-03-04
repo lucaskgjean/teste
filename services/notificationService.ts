@@ -5,8 +5,8 @@ class NotificationService {
   // Método para verificar o status técnico (ajuda no diagnóstico)
   getDebugInfo() {
     const isMedian = !!((window as any).gonative || (window as any).median || navigator.userAgent.includes('gonative'));
-    const hasOneSignal = !!(window as any).gonative?.oneSignal;
-    const hasNotifications = !!(window as any).gonative?.notifications;
+    const hasOneSignal = !!((window as any).gonative?.oneSignal || (window as any).OneSignal);
+    const hasNotifications = !!((window as any).gonative?.notifications || (window as any).median?.notifications);
     const permission = (window as any).Notification?.permission || 'unknown';
     
     return {
@@ -14,31 +14,16 @@ class NotificationService {
       hasOneSignal,
       hasNotifications,
       permission,
-      userAgent: navigator.userAgent
+      userAgent: navigator.userAgent.slice(0, 20) + '...'
     };
   }
 
   private callMedian(url: string) {
-    console.log('Comando Android:', url);
+    console.log('Comando OneSignal/Android:', url);
     
-    // Tenta o novo prefixo "median://" além do "gonative://"
     const medianUrl = url.replace('gonative://', 'median://');
     
-    // 1. Tenta via JavaScript nativo se disponível
-    const isMedian = (window as any).gonative || (window as any).median;
-    if (isMedian) {
-      const title = url.includes('title=') ? decodeURIComponent(url.split('title=')[1].split('&')[0]) : '';
-      const body = url.includes('body=') ? decodeURIComponent(url.split('body=')[1].split('&')[0]) : '';
-
-      if ((window as any).gonative?.notifications?.create) {
-        try {
-          (window as any).gonative.notifications.create({ title, body });
-          return;
-        } catch (e) { console.error(e); }
-      }
-    }
-
-    // 2. Fallback para URL Scheme (O método mais compatível)
+    // Tenta registrar no OneSignal via comando direto de URL
     const iframe1 = document.createElement('iframe');
     iframe1.setAttribute('src', url);
     iframe1.setAttribute('style', 'display: none;');
@@ -60,20 +45,17 @@ class NotificationService {
     
     if (isMedian) {
       try {
-        // 1. Tenta registrar no OneSignal nativo via JS
+        // Tenta registrar no OneSignal de todas as formas possíveis
         if ((window as any).gonative?.oneSignal) {
           (window as any).gonative.oneSignal.register();
-          (window as any).gonative.oneSignal.sendTag({ key: 'app_active', value: 'true' });
         }
         
-        // 2. Tenta registrar no OneSignal via URL Scheme (Fallback)
         this.callMedian('gonative://onesignal/register');
-        
-        // 3. Tenta abrir o diálogo de permissão geral do Android
         this.callMedian('gonative://notifications/register');
+        
         return true; 
       } catch (e) {
-        console.error('Erro Median Permission:', e);
+        console.error('Erro OneSignal Permission:', e);
       }
     }
 
