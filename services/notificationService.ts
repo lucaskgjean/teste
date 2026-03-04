@@ -3,7 +3,25 @@ import { CustomNotification } from '../types';
 
 class NotificationService {
   private callMedian(url: string) {
-    console.log('Enviando comando para o Android:', url);
+    const title = url.includes('title=') ? decodeURIComponent(url.split('title=')[1].split('&')[0]) : '';
+    const body = url.includes('body=') ? decodeURIComponent(url.split('body=')[1].split('&')[0]) : '';
+
+    // 1. Tenta a API de objeto JavaScript (Mais moderna e recomendada pelo Median)
+    if ((window as any).gonative?.notifications?.create) {
+      try {
+        (window as any).gonative.notifications.create({
+          title: title,
+          body: body,
+        });
+        console.log('Notificação enviada via JS Object');
+        return;
+      } catch (e) {
+        console.error('Erro via JS Object:', e);
+      }
+    }
+
+    // 2. Fallback para o método de iframe (Link invisível)
+    console.log('Tentando fallback via URL Scheme:', url);
     const iframe = document.createElement('iframe');
     iframe.setAttribute('src', url);
     iframe.setAttribute('style', 'display: none;');
@@ -20,9 +38,11 @@ class NotificationService {
     
     if (isMedian) {
       try {
-        // 1. Tenta registrar no OneSignal nativo
+        // 1. Tenta registrar no OneSignal nativo e envia uma tag de teste
         if ((window as any).gonative?.oneSignal) {
           (window as any).gonative.oneSignal.register();
+          // Envia uma tag para o OneSignal saber que o usuário está ativo no app
+          (window as any).gonative.oneSignal.sendTag({ key: 'app_active', value: 'true' });
         }
         
         // 2. Tenta abrir o diálogo de permissão do Android
