@@ -1,7 +1,7 @@
 
 import React, { useMemo } from 'react';
 import { DailyEntry, AppConfig } from '../types';
-import { formatCurrency } from '../utils/calculations';
+import { formatCurrency, getWeeklySummary, getLocalDateStr } from '../utils/calculations';
 import { motion } from 'framer-motion';
 import { 
   Wrench, 
@@ -11,7 +11,8 @@ import {
   ChevronRight, 
   History as HistoryIcon,
   ShieldCheck,
-  Clock
+  Clock,
+  Wallet
 } from 'lucide-react';
 import QuickKM from './QuickKM';
 
@@ -23,13 +24,22 @@ interface MaintenanceProps {
 }
 
 const Maintenance: React.FC<MaintenanceProps> = ({ entries, config, onEdit, onAdd }) => {
-  const maintenanceEntries = entries.filter(e => e.maintenance > 0 && e.grossAmount === 0);
-  const incomeEntries = entries.filter(e => e.grossAmount > 0);
-  
-  const totalReserved = incomeEntries.reduce((acc, curr) => acc + curr.maintenance, 0);
-  const totalSpent = maintenanceEntries.reduce((acc, curr) => acc + curr.maintenance, 0);
-  const balance = totalReserved - totalSpent;
+  const todayStr = getLocalDateStr();
+  const currentMonthStr = todayStr.substring(0, 7);
 
+  const todayEntries = entries.filter(e => e.date === todayStr);
+  const monthEntries = entries.filter(e => e.date.startsWith(currentMonthStr));
+  
+  const todaySum = getWeeklySummary(todayEntries);
+  const monthSum = getWeeklySummary(monthEntries);
+  const generalSum = getWeeklySummary(entries);
+
+  const todaySpent = todaySum.totalSpentFuel + todaySum.totalSpentFood + todaySum.totalSpentMaintenance + todaySum.totalSpentOthers;
+  const monthSpent = monthSum.totalSpentFuel + monthSum.totalSpentFood + monthSum.totalSpentMaintenance + monthSum.totalSpentOthers;
+  const totalReservedAll = generalSum.totalFuel + generalSum.totalFood + generalSum.totalMaintenance + generalSum.totalOthers;
+
+  const maintenanceEntries = entries.filter(e => e.maintenance > 0 && e.grossAmount === 0);
+  
   const lastKmEntry = entries.reduce((max, curr) => {
     const km = curr.kmDriven || curr.kmAtMaintenance || 0;
     return km > max ? km : max;
@@ -83,19 +93,25 @@ const Maintenance: React.FC<MaintenanceProps> = ({ entries, config, onEdit, onAd
         variants={itemVariants}
         className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center gap-8 relative overflow-hidden group"
       >
-        <div className="relative z-10">
-          <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 dark:text-slate-500 mb-2">Reserva para Manutenção</h2>
-          <div className="text-5xl font-black text-slate-800 dark:text-white tracking-tighter font-mono-num">{formatCurrency(balance)}</div>
-          <p className="text-xs text-slate-400 dark:text-slate-500 mt-3 font-bold uppercase tracking-tight">Total acumulado: {formatCurrency(totalReserved)}</p>
-        </div>
-        <div className="text-center md:text-right relative z-10">
-          <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase block mb-1 tracking-widest">KM Atual Estimado</span>
-          <div className="text-4xl font-black text-blue-600 dark:text-blue-400 tracking-tighter font-mono-num flex items-center gap-2 justify-center md:justify-end">
-            <Navigation size={24} /> {lastKmEntry.toLocaleString()} <small className="text-sm opacity-50">KM</small>
+        <div className="relative z-10 flex-1 w-full">
+          <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 dark:text-slate-500 mb-2">Gasto Real (Hoje)</h2>
+          <div className="text-5xl font-black text-rose-600 dark:text-rose-400 tracking-tighter font-mono-num">{formatCurrency(todaySpent)}</div>
+          <div className="mt-3">
+            <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block mb-1">Total Mensal</span>
+            <p className="text-lg font-black text-slate-800 dark:text-white font-mono-num">{formatCurrency(monthSpent)}</p>
           </div>
         </div>
+        
+        <div className="text-center md:text-right relative z-10">
+          <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase block mb-1 tracking-widest">Reservas Projetadas</span>
+          <div className="text-4xl font-black text-emerald-600 dark:text-emerald-400 tracking-tighter font-mono-num flex items-center gap-2 justify-center md:justify-end">
+            {formatCurrency(totalReservedAll)}
+          </div>
+          <p className="text-[9px] text-slate-400 dark:text-slate-500 mt-1 font-bold uppercase tracking-tight">Saldo Acumulado</p>
+        </div>
+        
         <div className="absolute -right-8 -bottom-8 opacity-[0.03] dark:opacity-[0.05] group-hover:scale-110 transition-transform duration-700">
-          <Wrench size={200} />
+          <Wallet size={200} />
         </div>
       </motion.div>
 

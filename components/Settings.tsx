@@ -2,7 +2,8 @@
 import React, { useState, useRef } from 'react';
 import { AppConfig, DEFAULT_CONFIG, DailyEntry, TimeEntry } from '../types';
 import { formatCurrency, entriesToCSV } from '../utils/calculations';
-import { Sun, Moon, Monitor, Settings as SettingsIcon } from 'lucide-react';
+import { Sun, Moon, Monitor, Settings as SettingsIcon, Bell, Plus, Trash2, Clock } from 'lucide-react';
+import { notificationService } from '../services/notificationService';
 
 interface SettingsProps {
   config: AppConfig;
@@ -117,6 +118,43 @@ const Settings: React.FC<SettingsProps> = ({ config, entries, timeEntries, onCha
     onChange({ ...config, maintenanceAlerts: (config.maintenanceAlerts || []).filter(a => a.id !== id) });
   };
 
+  const toggleNotifications = async () => {
+    if (!config.notificationsEnabled) {
+      const granted = await notificationService.requestPermission();
+      if (granted) {
+        onChange({ ...config, notificationsEnabled: true });
+        notificationService.sendNotification("Notificações Ativadas!", {
+          body: "Você agora receberá alertas do RotaFinanceira."
+        });
+      } else {
+        alert("Para ativar as notificações, você precisa permitir nas configurações do seu navegador/celular.");
+      }
+    } else {
+      onChange({ ...config, notificationsEnabled: false });
+    }
+  };
+
+  const addCustomNotification = () => {
+    const newNotif = {
+      id: Math.random().toString(36).substr(2, 9),
+      title: 'Lembrete de Rota',
+      message: 'Hora de começar os trabalhos!',
+      time: '08:00',
+      days: [1, 2, 3, 4, 5], // Seg-Sex
+      enabled: true
+    };
+    onChange({ ...config, customNotifications: [...(config.customNotifications || []), newNotif] });
+  };
+
+  const updateCustomNotification = (id: string, updates: any) => {
+    const newNotifs = (config.customNotifications || []).map(n => n.id === id ? { ...n, ...updates } : n);
+    onChange({ ...config, customNotifications: newNotifs });
+  };
+
+  const removeCustomNotification = (id: string) => {
+    onChange({ ...config, customNotifications: (config.customNotifications || []).filter(n => n.id !== id) });
+  };
+
   const todayStr = new Date().toISOString().split('T')[0];
 
   return (
@@ -151,6 +189,110 @@ const Settings: React.FC<SettingsProps> = ({ config, entries, timeEntries, onCha
             </button>
           ))}
         </div>
+      </div>
+
+      {/* CARD: NOTIFICAÇÕES (NOVO) */}
+      <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800">
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-amber-50 dark:bg-amber-500/10 rounded-lg flex items-center justify-center text-amber-600 dark:text-amber-400">
+              <Bell size={18} strokeWidth={2.5} />
+            </div>
+            <h3 className="text-xl font-black text-slate-800 dark:text-white">Notificações</h3>
+          </div>
+          <button 
+            onClick={toggleNotifications}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${config.notificationsEnabled ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700'}`}
+          >
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${config.notificationsEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+          </button>
+        </div>
+
+        {config.notificationsEnabled && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-top-2">
+            <div className="flex justify-between items-center">
+              <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Lembretes Personalizados</p>
+              <button 
+                onClick={addCustomNotification}
+                className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest bg-indigo-50 dark:bg-indigo-500/10 px-3 py-1.5 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors flex items-center gap-1"
+              >
+                <Plus size={12} /> Novo
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {(config.customNotifications || []).map(notif => (
+                <div key={notif.id} className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-4">
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="flex-1 space-y-3">
+                      <input 
+                        type="text" 
+                        placeholder="Título"
+                        value={notif.title}
+                        onChange={(e) => updateCustomNotification(notif.id, { title: e.target.value })}
+                        className="w-full bg-transparent border-none p-0 text-sm font-black text-slate-800 dark:text-white placeholder:text-slate-400 focus:ring-0"
+                      />
+                      <input 
+                        type="text" 
+                        placeholder="Mensagem"
+                        value={notif.message}
+                        onChange={(e) => updateCustomNotification(notif.id, { message: e.target.value })}
+                        className="w-full bg-transparent border-none p-0 text-xs font-bold text-slate-500 dark:text-slate-400 placeholder:text-slate-400 focus:ring-0"
+                      />
+                    </div>
+                    <button 
+                      onClick={() => removeCustomNotification(notif.id)}
+                      className="p-2 text-rose-400 hover:text-rose-600 transition-colors"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center gap-2 bg-white dark:bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                      <Clock size={14} className="text-slate-400" />
+                      <input 
+                        type="time" 
+                        value={notif.time}
+                        onChange={(e) => updateCustomNotification(notif.id, { time: e.target.value })}
+                        className="bg-transparent border-none p-0 text-xs font-black text-slate-700 dark:text-slate-200 focus:ring-0"
+                      />
+                    </div>
+
+                    <div className="flex gap-1">
+                      {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((day, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            const newDays = notif.days.includes(idx) 
+                              ? notif.days.filter(d => d !== idx)
+                              : [...notif.days, idx];
+                            updateCustomNotification(notif.id, { days: newDays });
+                          }}
+                          className={`w-7 h-7 rounded-lg text-[10px] font-black flex items-center justify-center transition-all ${notif.days.includes(idx) ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200 dark:shadow-none' : 'bg-white dark:bg-slate-900 text-slate-400 dark:text-slate-500 border border-slate-100 dark:border-slate-800'}`}
+                        >
+                          {day}
+                        </button>
+                      ))}
+                    </div>
+
+                    <button 
+                      onClick={() => updateCustomNotification(notif.id, { enabled: !notif.enabled })}
+                      className={`ml-auto text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl transition-all ${notif.enabled ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500'}`}
+                    >
+                      {notif.enabled ? 'Ativo' : 'Pausado'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {(config.customNotifications || []).length === 0 && (
+                <div className="text-center py-8 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
+                  <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Nenhum lembrete criado</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* CARD: SOBRE O APP E TUTORIAL */}

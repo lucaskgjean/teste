@@ -51,6 +51,15 @@ export interface TimeEntry {
   notes?: string;
 }
 
+export interface CustomNotification {
+  id: string;
+  title: string;
+  message: string;
+  time: string; // HH:mm
+  days: number[]; // 0-6 (Sun-Sat)
+  enabled: boolean;
+}
+
 export interface AppConfig {
   percFuel: number;
   percFood: number;
@@ -60,6 +69,8 @@ export interface AppConfig {
   lastTotalKm?: number;
   maintenanceAlerts?: MaintenanceAlert[];
   themeMode?: 'light' | 'dark' | 'auto';
+  notificationsEnabled: boolean;
+  customNotifications?: CustomNotification[];
 }
 
 export const DEFAULT_CONFIG: AppConfig = {
@@ -70,6 +81,8 @@ export const DEFAULT_CONFIG: AppConfig = {
   lastFuelPrice: 5.50,   // Valor base sugerido
   lastTotalKm: 0,
   themeMode: 'auto',
+  notificationsEnabled: false,
+  customNotifications: [],
   maintenanceAlerts: [
     { id: '1', description: 'Troca de Óleo', kmInterval: 10000, lastKm: 0 },
     { id: '2', description: 'Pneus', kmInterval: 40000, lastKm: 0 },

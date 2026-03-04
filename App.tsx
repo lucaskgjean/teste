@@ -31,10 +31,11 @@ import {
   Sparkles
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { generateId, getLocalDateStr, getWeeklySummary } from './utils/calculations';
+import { formatCurrency, generateId, getLocalDateStr, getWeeklySummary } from './utils/calculations';
 
 import { storageService } from './services/storageService';
 import AIReportAssistant from './components/AIReportAssistant';
+import { notificationService } from './services/notificationService';
 
 const App: React.FC = () => {
   const [entries, setEntries] = useState<DailyEntry[]>([]);
@@ -85,6 +86,39 @@ const App: React.FC = () => {
       return () => mediaQuery.removeEventListener('change', handleChange);
     }
   }, [config.themeMode]);
+
+  // 1. Notificações Personalizadas (Timer de 1 minuto)
+  useEffect(() => {
+    if (!config.notificationsEnabled || !config.customNotifications) return;
+
+    const interval = setInterval(() => {
+      notificationService.checkAndTriggerCustomNotifications(config.customNotifications || []);
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [config.notificationsEnabled, config.customNotifications]);
+
+  // 2. Alertas de Manutenção via Notificação
+  useEffect(() => {
+    if (!config.notificationsEnabled || !config.maintenanceAlerts) return;
+    
+    const lastKm = config.lastTotalKm || 0;
+    const today = getLocalDateStr();
+
+    config.maintenanceAlerts.forEach(alert => {
+      const remaining = alert.kmInterval - (lastKm - alert.lastKm);
+      // Alerta quando faltar menos de 500km
+      if (remaining <= 500 && remaining > 0) {
+        const lastAlertNotif = localStorage.getItem(`last_maint_notif_${alert.id}`);
+        if (lastAlertNotif !== today) {
+          notificationService.sendNotification("Manutenção Próxima! ⚠️", {
+            body: `O item "${alert.description}" precisa de atenção em ${remaining}km.`
+          });
+          localStorage.setItem(`last_maint_notif_${alert.id}`, today);
+        }
+      }
+    });
+  }, [config.notificationsEnabled, config.lastTotalKm, config.maintenanceAlerts]);
 
   // Auto-close shifts from previous days at midnight
   useEffect(() => {
@@ -230,6 +264,17 @@ const App: React.FC = () => {
           colors: ['#6366f1', '#10b981', '#f59e0b']
         });
         showToast("Meta diária batida! Parabéns! 🎉");
+
+        // Notificação de Meta
+        if (config.notificationsEnabled) {
+          const lastGoalNotif = localStorage.getItem('last_goal_notif');
+          if (lastGoalNotif !== todayStr) {
+            notificationService.sendNotification("Meta Batida! 🎉", {
+              body: `Parabéns! Você atingiu sua meta de ${formatCurrency(config.dailyGoal)} hoje.`
+            });
+            localStorage.setItem('last_goal_notif', todayStr);
+          }
+        }
       } else {
         showToast("Lançamento salvo com sucesso!");
       }
