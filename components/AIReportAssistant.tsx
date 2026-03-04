@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Send, Bot, User, Loader2, AlertCircle, Paperclip } from 'lucide-react';
+import { Sparkles, Send, User, Loader2, AlertCircle, Paperclip } from 'lucide-react';
 import { formatCurrency, generateId, getLocalDateStr } from '../utils/calculations';
 import { DailyEntry } from '../types';
 
@@ -78,30 +78,47 @@ const AIReportAssistant: React.FC<AIReportAssistantProps> = ({ reportData, onAdd
       const ai = new GoogleGenAI({ apiKey });
       
       const context = `
-        Você é o assistente de inteligência artificial do aplicativo RotaFinanceira.
-        Seu objetivo é analisar os dados financeiros do usuário, fornecer insights e, PRINCIPALMENTE, ajudar a LANÇAR NOVOS DADOS a partir de textos ou imagens de relatórios de aplicativos de entrega (iFood, Uber, Rappi, etc.).
+        Você é o "Mestre das Rotas", um parceiro veterano de estrada e consultor financeiro para entregadores.
+        Seu tom de voz é motivador, direto, carismático e entende o "corre" do dia a dia.
         
-        DADOS DO RELATÓRIO ATUAL NO SISTEMA:
-        - Período: ${reportData.startDate || 'Geral'} até ${reportData.endDate || 'Geral'}
+        OBJETIVOS:
+        1. Analisar os dados financeiros com inteligência e carisma.
+        2. Ajudar a LANÇAR NOVOS DADOS a partir de textos ou imagens de relatórios (iFood, Uber, Rappi, etc.).
+        3. Ser proativo: não apenas liste números, dê insights acionáveis (ex: sugerir economia, comparar dias, motivar metas).
+        
+        PERSONALIDADE:
+        - Nunca use saudações repetitivas. Varie como começa a conversa.
+        - Use gírias leves de quem está na rua (rota, entrega, meta batida, taxa, corre).
+        - Se o usuário estiver indo bem, comemore com ele. Se estiver devagar, dê uma dica ou incentivo.
+        
+        DADOS DO SISTEMA (Últimos 30 dias):
+        - Período: ${reportData.startDate} até ${reportData.endDate}
         - Faturamento Bruto: ${formatCurrency(reportData.summary?.totalGross || 0)}
-        - Lucro Líquido: ${formatCurrency(reportData.summary?.totalNet || 0)}
+        - Lucro Líquido Real: ${formatCurrency(reportData.summary?.totalNet || 0)}
+        - Gasto Real Combustível: ${formatCurrency(reportData.summary?.totalSpentFuel || 0)}
+        - Gasto Real Alimentação: ${formatCurrency(reportData.summary?.totalSpentFood || 0)}
+        - Gasto Real Manutenção: ${formatCurrency(reportData.summary?.totalSpentMaintenance || 0)}
+        - Faturamento dos últimos 7 dias: ${JSON.stringify(reportData.last7Days || {})}
+        
+        METAS E CONFIGS:
+        - Meta Diária: ${formatCurrency(config.dailyGoal)}
+        - % Reserva Combustível: ${config.percFuel * 100}%
+        - % Reserva Manutenção: ${config.percMaintenance * 100}%
         
         INSTRUÇÕES DE IMPORTAÇÃO:
-        Se o usuário enviar um texto ou imagem que pareça um relatório de ganhos ou taxas:
+        Se o usuário enviar um texto ou imagem que pareça um relatório de ganhos:
         1. Identifique cada entrega/taxa individualmente.
         2. Extraia: Data (YYYY-MM-DD), Valor Bruto (grossAmount), Nome da Loja/App (storeName) e Hora (HH:mm).
         3. Se a data não estiver clara, use a data atual: ${getLocalDateStr()}.
-        4. Se a hora não estiver clara, use "12:00".
-        5. Se o usuário pedir para "lançar" ou "importar", você DEVE responder com uma mensagem amigável E incluir no final da sua resposta EXATAMENTE este formato de comando (sem blocos de código markdown):
+        4. Se o usuário pedir para "lançar" ou "importar", você DEVE responder com uma mensagem amigável E incluir no final da sua resposta EXATAMENTE este formato de comando (sem blocos de código markdown):
            ACTION:IMPORT:[{"date":"YYYY-MM-DD","time":"HH:mm","storeName":"Nome","grossAmount":10.50}]
         
         REGRAS PARA O JSON:
         - grossAmount deve ser um número.
         - storeName deve ser o nome do restaurante ou do app.
-        - Você pode enviar múltiplos objetos no array.
         - NÃO use blocos de código markdown (\`\`\`) para o comando ACTION.
         
-        Se for apenas uma pergunta sobre os dados, responda normalmente em português.
+        Seja o parceiro que o entregador precisa para crescer financeiramente.
       `;
 
       const parts: any[] = [{ text: context + "\n\nPergunta/Relatório do usuário: " + userMessage }];
@@ -197,8 +214,8 @@ const AIReportAssistant: React.FC<AIReportAssistantProps> = ({ reportData, onAdd
               <Sparkles size={20} />
             </div>
             <div>
-              <h3 className="text-sm font-black uppercase tracking-widest">IA Analista & Importação</h3>
-              <p className="text-[10px] opacity-70 font-bold uppercase tracking-tight">Análise e lançamentos automáticos</p>
+              <h3 className="text-sm font-black uppercase tracking-widest">Mestre das Rotas</h3>
+              <p className="text-[10px] opacity-70 font-bold uppercase tracking-tight">Seu parceiro de inteligência</p>
             </div>
           </div>
           <button 
@@ -216,10 +233,15 @@ const AIReportAssistant: React.FC<AIReportAssistantProps> = ({ reportData, onAdd
         >
           {messages.length === 0 && (
             <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-50">
-              <Bot size={48} className="text-indigo-500" />
+              <div className="w-16 h-16 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-indigo-500">
+                <Sparkles size={32} />
+              </div>
               <div className="max-w-xs">
-                <p className="text-xs font-black uppercase tracking-widest text-slate-500">Olá! Eu sou sua IA Analista.</p>
-                <p className="text-[10px] font-bold text-slate-400 mt-1">Cole o texto de um relatório ou envie um print para eu lançar as taxas automaticamente para você.</p>
+                <p className="text-xs font-black uppercase tracking-widest text-slate-500">Fala, Mestre das Rotas! 👊</p>
+                <p className="text-[10px] font-bold text-slate-400 mt-1">
+                  Manda um print do seu relatório ou cole o texto dos ganhos aqui. 
+                  Eu lanço tudo pra você e ainda te dou aquela letra sobre como tá seu lucro!
+                </p>
               </div>
             </div>
           )}
@@ -233,7 +255,7 @@ const AIReportAssistant: React.FC<AIReportAssistantProps> = ({ reportData, onAdd
             >
               <div className={`max-w-[85%] flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${msg.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-slate-800 text-indigo-600 shadow-sm'}`}>
-                  {msg.role === 'user' ? <User size={16} /> : <Bot size={16} />}
+                  {msg.role === 'user' ? <User size={16} /> : <Sparkles size={16} />}
                 </div>
                 <div className={`p-4 rounded-2xl text-xs leading-relaxed whitespace-pre-wrap ${msg.role === 'user' ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 shadow-sm rounded-tl-none border border-slate-100 dark:border-slate-700'}`}>
                   {msg.text}
@@ -305,7 +327,7 @@ const AIReportAssistant: React.FC<AIReportAssistantProps> = ({ reportData, onAdd
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-                placeholder="Cole o relatório ou pergunte algo..."
+                placeholder="Manda o relatório ou pergunta pro Mestre..."
                 className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl pl-5 pr-14 py-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition font-bold text-slate-700 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 text-sm"
               />
               <button

@@ -506,7 +506,18 @@ const App: React.FC = () => {
                 const thirtyDaysAgo = new Date();
                 thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
                 return date >= thirtyDaysAgo;
-              }))
+              })),
+              last7Days: entries
+                .filter(e => {
+                  const date = new Date(e.date + 'T12:00:00');
+                  const sevenDaysAgo = new Date();
+                  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                  return date >= sevenDaysAgo;
+                })
+                .reduce((acc, curr) => {
+                  acc[curr.date] = (acc[curr.date] || 0) + curr.grossAmount;
+                  return acc;
+                }, {} as Record<string, number>)
             }}
           />
         )}

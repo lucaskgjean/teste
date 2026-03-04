@@ -23,19 +23,25 @@ class NotificationService {
   sendNotification(title: string, options?: NotificationOptions) {
     if (!('Notification' in window)) return;
     
+    const icon = 'https://cdn-icons-png.flaticon.com/512/1165/1165961.png';
+    
     if (Notification.permission === 'granted') {
-      // Tenta usar o ServiceWorker se disponível (melhor para Android)
-      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      // Tenta usar o ServiceWorker se disponível (melhor para Android/Median)
+      if ('serviceWorker' in navigator) {
         navigator.serviceWorker.ready.then((registration) => {
           registration.showNotification(title, {
-            icon: '/icon-192x192.png',
-            badge: '/icon-192x192.png',
+            icon: icon,
+            badge: icon,
+            vibrate: [100, 50, 100],
             ...options,
-          });
+          } as any);
+        }).catch(() => {
+          // Fallback se o SW falhar
+          new Notification(title, { icon, ...options });
         });
       } else {
         try {
-          new Notification(title, options);
+          new Notification(title, { icon, ...options });
         } catch (e) {
           console.error('Erro ao enviar notificação:', e);
         }
