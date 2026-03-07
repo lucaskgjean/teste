@@ -109,7 +109,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                 <input 
                   type="email" 
                   required
-                  disabled={!isFirebaseConfigured}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="seu@email.com"
@@ -125,7 +124,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                 <input 
                   type="password" 
                   required
-                  disabled={!isFirebaseConfigured}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
@@ -150,7 +148,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
             <button 
               type="submit"
-              disabled={loading || !isFirebaseConfigured}
+              disabled={loading}
               className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-600/50 text-white font-black py-5 rounded-2xl shadow-xl shadow-indigo-500/20 transition-all active:scale-95 uppercase text-xs tracking-widest flex items-center justify-center gap-3"
             >
               {loading ? (

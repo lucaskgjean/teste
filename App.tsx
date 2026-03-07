@@ -176,6 +176,11 @@ const App: React.FC = () => {
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, [config.themeMode]);
 
+  // Scroll to top on tab change
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [activeTab]);
+
   const handleTabChange = (tab: typeof activeTab) => {
     if (tab === activeTab) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -694,13 +699,18 @@ const App: React.FC = () => {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-4">
-        <AnimatePresence mode="wait">
+        <AnimatePresence initial={false}>
           <motion.div
             key={activeTab}
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -10 }}
-            transition={{ duration: 0.2 }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ 
+              type: 'spring',
+              stiffness: 1000,
+              damping: 60,
+              mass: 0.2
+            }}
           >
             {activeTab === 'dashboard' && <Dashboard entries={entries} config={config} onEdit={setEditingEntry} onDelete={deleteEntry} onNavigate={setActiveTab} onAdd={addEntry} />}
             {activeTab === 'expenses' && <Expenses entries={entries} config={config} onEdit={setEditingEntry} onAdd={addEntry} />}

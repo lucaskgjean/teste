@@ -268,6 +268,7 @@ const History: React.FC<HistoryProps> = ({ entries, config, onDelete, onEdit, on
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
+                  whileHover={{ y: -2, transition: { duration: 0.2 } }}
                   className={`bg-white dark:bg-slate-900 rounded-[2.5rem] p-6 border-2 transition-all group relative overflow-hidden ${entry.grossAmount > 0 ? 'border-indigo-50 dark:border-indigo-500/10 hover:border-indigo-100 dark:hover:border-indigo-500/20' : 'border-rose-50 dark:border-rose-500/10 hover:border-rose-100 dark:hover:border-rose-500/20'}`}
                 >
                   {/* Barra de Status Lateral */}

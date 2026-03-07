@@ -70,14 +70,23 @@ const Dashboard: React.FC<DashboardProps> = ({ entries, config, onEdit, onDelete
     show: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.1
+        staggerChildren: 0.05
       }
     }
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0 }
+    hidden: { opacity: 0, y: 15, scale: 0.98 },
+    show: { 
+      opacity: 1, 
+      y: 0, 
+      scale: 1,
+      transition: {
+        type: 'spring',
+        stiffness: 400,
+        damping: 25
+      }
+    }
   };
 
   return (
@@ -98,6 +107,7 @@ const Dashboard: React.FC<DashboardProps> = ({ entries, config, onEdit, onDelete
         {/* Card de Progresso (Destaque - 2 colunas) */}
         <motion.div 
           variants={itemVariants}
+          whileHover={{ y: -4, transition: { duration: 0.2 } }}
           className="md:col-span-2 bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col justify-between relative overflow-hidden group"
         >
           <div className="relative z-10">
@@ -145,6 +155,7 @@ const Dashboard: React.FC<DashboardProps> = ({ entries, config, onEdit, onDelete
         {/* Card Hoje (1 coluna) */}
         <motion.div 
           variants={itemVariants}
+          whileHover={{ y: -4, transition: { duration: 0.2 } }}
           className="bg-indigo-600 dark:bg-indigo-700 p-6 rounded-[2.5rem] text-white shadow-lg shadow-indigo-200 dark:shadow-none flex flex-col justify-between group hover:bg-indigo-700 dark:hover:bg-indigo-800 transition-colors"
         >
           <div className="flex justify-between items-start">
@@ -167,6 +178,7 @@ const Dashboard: React.FC<DashboardProps> = ({ entries, config, onEdit, onDelete
         {/* Card Semana (1 coluna) */}
         <motion.div 
           variants={itemVariants}
+          whileHover={{ y: -4, transition: { duration: 0.2 } }}
           className="bg-slate-900 dark:bg-slate-800 p-6 rounded-[2.5rem] text-white shadow-lg shadow-slate-200 dark:shadow-none flex flex-col justify-between group hover:bg-slate-800 dark:hover:bg-slate-700 transition-colors"
         >
           <div className="flex justify-between items-start">
@@ -189,6 +201,7 @@ const Dashboard: React.FC<DashboardProps> = ({ entries, config, onEdit, onDelete
         {/* Card Mês (2 colunas em MD para ficar abaixo da semana/hoje ou ao lado) */}
         <motion.div 
           variants={itemVariants}
+          whileHover={{ y: -4, transition: { duration: 0.2 } }}
           className="md:col-span-2 bg-emerald-600 dark:bg-emerald-700 p-6 rounded-[2.5rem] text-white shadow-lg shadow-emerald-100 dark:shadow-none flex flex-col justify-between relative overflow-hidden group"
         >
           <div className="relative z-10 flex flex-col h-full justify-between">
@@ -245,6 +258,7 @@ const Dashboard: React.FC<DashboardProps> = ({ entries, config, onEdit, onDelete
         {/* Card de Reservas */}
         <motion.div 
           variants={itemVariants}
+          whileHover={{ y: -4, transition: { duration: 0.2 } }}
           className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col md:flex-row items-center gap-8"
         >
           <div className="flex-1 w-full">
@@ -278,6 +292,8 @@ const Dashboard: React.FC<DashboardProps> = ({ entries, config, onEdit, onDelete
                   paddingAngle={8} 
                   dataKey="value"
                   stroke="none"
+                  animationBegin={200}
+                  animationDuration={1000}
                 >
                   {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                 </Pie>

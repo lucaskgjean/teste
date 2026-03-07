@@ -4,6 +4,7 @@ import { AppConfig, DEFAULT_CONFIG, DailyEntry, TimeEntry } from '../types';
 import { formatCurrency, entriesToCSV } from '../utils/calculations';
 import CustomDialog from './CustomDialog';
 import { Sun, Moon, Monitor, Settings as SettingsIcon, Bell, Plus, Trash2, Clock, LogOut, User, Camera, Phone, Mail, Lock, ChevronRight, Sparkles, ShieldCheck, RefreshCw, AlertTriangle } from 'lucide-react';
+import { motion } from 'motion/react';
 import { notificationService } from '../services/notificationService';
 import { authService } from '../services/authService';
 import { isUserAdmin } from '../constants';
@@ -354,10 +355,19 @@ const Settings: React.FC<SettingsProps> = ({ config, entries, timeEntries, onCha
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeTab === tab.id ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all relative ${activeTab === tab.id ? 'text-white' : 'text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
           >
-            {tab.icon}
-            {tab.label}
+            {activeTab === tab.id && (
+              <motion.div 
+                layoutId="settings-tab-bg"
+                className="absolute inset-0 bg-indigo-600 rounded-xl shadow-md"
+                transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+              />
+            )}
+            <span className="relative z-10 flex items-center gap-2">
+              {tab.icon}
+              {tab.label}
+            </span>
           </button>
         ))}
       </div>

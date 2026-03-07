@@ -105,14 +105,16 @@ const QuickLaunch: React.FC<QuickLaunchProps> = ({ onAdd, existingEntries, confi
             <div className="flex overflow-x-auto gap-2 pb-2 scrollbar-hide -mx-1 px-1">
               {filteredStores.length > 0 ? (
                 filteredStores.map(store => (
-                  <button
+                  <motion.button
                     key={store}
                     type="button"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => setStoreName(store)}
                     className={`text-[9px] font-black px-4 py-2 rounded-xl transition-all whitespace-nowrap flex-shrink-0 ${storeName === store ? 'bg-indigo-600 dark:bg-indigo-500 text-white shadow-md' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
                   >
                     {store}
-                  </button>
+                  </motion.button>
                 ))
               ) : storeName.trim() !== '' && (
                 <div className="text-[9px] font-bold text-slate-400 py-2 px-1 uppercase italic">Nova loja detectada</div>
@@ -139,14 +141,16 @@ const QuickLaunch: React.FC<QuickLaunchProps> = ({ onAdd, existingEntries, confi
             </div>
             <div className="flex overflow-x-auto gap-2 pb-2 scrollbar-hide -mx-1 px-1">
               {suggestionAmounts.map(val => (
-                <button
+                <motion.button
                   key={val}
                   type="button"
+                  whileHover={{ scale: 1.1, rotate: 5 }}
+                  whileTap={{ scale: 0.9 }}
                   onClick={() => setAmount(val.toString())}
                   className={`text-[10px] font-black w-10 h-10 rounded-xl transition-all flex items-center justify-center flex-shrink-0 ${amount === val.toString() ? 'bg-indigo-600 dark:bg-indigo-500 text-white shadow-md' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
                 >
                   {val}
-                </button>
+                </motion.button>
               ))}
             </div>
           </div>
@@ -162,14 +166,16 @@ const QuickLaunch: React.FC<QuickLaunchProps> = ({ onAdd, existingEntries, confi
                   { id: 'money', label: 'Din.' },
                   { id: 'caderno', label: 'Cad.' }
                 ].map(method => (
-                  <button 
+                  <motion.button 
                     key={method.id}
                     type="button" 
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => setPaymentMethod(method.id as any)}
                     className={`py-4 text-[10px] font-black uppercase tracking-widest rounded-2xl border-2 transition-all ${paymentMethod === method.id ? 'bg-indigo-600 dark:bg-indigo-500 border-indigo-600 dark:border-indigo-500 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-800 border-slate-50 dark:border-slate-800 text-slate-400 dark:text-slate-500 hover:border-slate-200 dark:hover:border-slate-700'}`}
                   >
                     {method.label}
-                  </button>
+                  </motion.button>
                 ))}
             </div>
           </div>
@@ -178,9 +184,10 @@ const QuickLaunch: React.FC<QuickLaunchProps> = ({ onAdd, existingEntries, confi
         <AnimatePresence>
           {showAdvanced && (
             <motion.div 
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
+              initial={{ height: 0, opacity: 0, marginTop: 0 }}
+              animate={{ height: 'auto', opacity: 1, marginTop: 24 }}
+              exit={{ height: 0, opacity: 0, marginTop: 0 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
               className="overflow-hidden"
             >
               <div className="grid grid-cols-2 gap-4 pt-6 border-t border-slate-50 dark:border-slate-800">
