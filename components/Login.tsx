@@ -130,6 +130,26 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                   className="w-full bg-slate-950 border border-slate-800 rounded-2xl pl-12 pr-4 py-4 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-slate-700 disabled:opacity-50"
                 />
               </div>
+              {isLogin && (
+                <button 
+                  type="button"
+                  onClick={async () => {
+                    if (!email) {
+                      setError('Digite seu e-mail para recuperar a senha.');
+                      return;
+                    }
+                    try {
+                      await authService.resetPassword(email);
+                      setError('E-mail de recuperação enviado! Verifique sua caixa de entrada.');
+                    } catch (err) {
+                      setError('Erro ao enviar e-mail de recuperação.');
+                    }
+                  }}
+                  className="text-[9px] font-black text-indigo-500 hover:text-indigo-400 uppercase tracking-widest ml-1 transition-colors"
+                >
+                  Esqueci minha senha
+                </button>
+              )}
             </div>
 
             <AnimatePresence mode="wait">
