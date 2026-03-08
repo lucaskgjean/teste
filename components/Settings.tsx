@@ -248,7 +248,8 @@ const Settings: React.FC<SettingsProps> = ({ config, entries, timeEntries, onCha
           await onDeleteAccount();
           setDialog(prev => ({ ...prev, isOpen: false }));
         } catch (error: any) {
-          if (error.code === 'auth/requires-recent-login') {
+          const errorCode = error.code || (error.message?.includes('auth/requires-recent-login') ? 'auth/requires-recent-login' : '');
+          if (errorCode === 'auth/requires-recent-login') {
             showPasswordPrompt();
           } else {
             console.error("Erro ao excluir conta:", error);

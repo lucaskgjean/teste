@@ -617,10 +617,12 @@ const App: React.FC = () => {
       showToast("Conta excluída permanentemente.");
     } catch (error: any) {
       console.error("Erro ao excluir conta:", error);
-      if (error.code === 'auth/requires-recent-login') {
+      const errorCode = error.code || (error.message?.includes('auth/requires-recent-login') ? 'auth/requires-recent-login' : '');
+      
+      if (errorCode === 'auth/requires-recent-login') {
         throw error; // Repassa para o componente Settings tratar
-      } else if (error.code === 'auth/wrong-password') {
-        showToast("Senha incorreta.", "error");
+      } else if (errorCode === 'auth/wrong-password' || errorCode === 'auth/invalid-credential') {
+        showToast("Senha incorreta ou inválida.", "error");
         throw error;
       } else {
         showToast("Erro ao excluir conta.", "error");
@@ -780,7 +782,7 @@ const App: React.FC = () => {
               mass: 0.2
             }}
           >
-            {activeTab === 'dashboard' && <Dashboard entries={entries} config={config} onEdit={setEditingEntry} onDelete={deleteEntry} onNavigate={setActiveTab} onAdd={addEntry} />}
+            {activeTab === 'dashboard' && <Dashboard entries={entries} timeEntries={timeEntries} config={config} onEdit={setEditingEntry} onDelete={deleteEntry} onNavigate={setActiveTab} onAdd={addEntry} />}
             {activeTab === 'expenses' && <Expenses entries={entries} config={config} onEdit={setEditingEntry} onAdd={addEntry} />}
             {activeTab === 'maintenance' && <Maintenance entries={entries} config={config} onEdit={setEditingEntry} onAdd={addEntry} />}
             {activeTab === 'ponto' && <TimeTracking timeEntries={timeEntries} onAdd={addTimeEntry} onUpdate={updateTimeEntry} onDelete={deleteTimeEntry} />}

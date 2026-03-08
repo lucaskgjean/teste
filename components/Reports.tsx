@@ -1,9 +1,19 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { DailyEntry, AppConfig, TimeEntry } from '../types';
-import { formatCurrency, getWeeklySummary, calculateDuration, formatDuration, getLocalDateStr } from '../utils/calculations';
+import { formatCurrency, getWeeklySummary, calculateDuration, formatDuration, getLocalDateStr, calculateFuelMetrics } from '../utils/calculations';
 import { motion } from 'motion/react';
 import CustomDialog from './CustomDialog';
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  Cell
+} from 'recharts';
 import { 
   BarChart3, 
   Calendar, 
@@ -24,7 +34,8 @@ import {
   CreditCard,
   MoreHorizontal,
   Lock,
-  Sparkles
+  Sparkles,
+  Gauge
 } from 'lucide-react';
 interface ReportsProps {
   entries: DailyEntry[];
@@ -184,7 +195,7 @@ const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config, onAddEn
 
     const quickLaunchesCount = incomeEntries.length;
     
-    const totalMinutes = filteredTime.reduce((acc, curr) => {
+    const totalSeconds = filteredTime.reduce((acc, curr) => {
       if (curr.startTime && curr.endTime) {
         return acc + calculateDuration(curr.startTime, curr.endTime, curr.breakDuration || 0);
       } else if (curr.startTime && !curr.endTime && curr.date === today) {
@@ -193,6 +204,9 @@ const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config, onAddEn
       }
       return acc;
     }, 0);
+
+    const totalHoursDecimal = totalSeconds / 3600;
+    const avgGrossPerHour = totalHoursDecimal > 0 ? summary.totalGross / totalHoursDecimal : 0;
 
     const totalFuelSpent = expenseEntries.reduce((acc, curr) => acc + curr.fuel, 0);
     const totalFoodSpent = expenseEntries.reduce((acc, curr) => acc + curr.food, 0);
@@ -206,15 +220,46 @@ const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config, onAddEn
     const totalFuelReserved = incomeEntries.reduce((acc, curr) => acc + curr.fuel, 0);
     const avgFuelPerLaunch = quickLaunchesCount > 0 ? totalFuelReserved / quickLaunchesCount : 0;
 
-    const totalHoursDecimal = totalMinutes / 60;
-    const avgGrossPerHour = totalHoursDecimal > 0 ? summary.totalGross / totalHoursDecimal : 0;
+    const totalFuelLiters = filteredEntries.reduce((acc, curr) => acc + (curr.liters || 0), 0);
+    const earningsPerKm = summary.totalKm && summary.totalKm > 0 ? summary.totalGross / summary.totalKm : 0;
+    const expensePerKm = summary.totalKm && summary.totalKm > 0 ? totalExpenses / summary.totalKm : 0;
+    const avgKmPerLiter = totalFuelLiters > 0 ? summary.totalKm / totalFuelLiters : 0;
+
+    const fuelMetrics = calculateFuelMetrics(filteredEntries);
+    
+    // Odômetro Total (último valor lançado em km total do veículo)
+    const allKmEntries = entries.filter(e => e.kmAtMaintenance !== undefined && e.kmAtMaintenance > 0);
+    const totalOdometer = allKmEntries.length > 0 
+      ? Math.max(...allKmEntries.map(e => e.kmAtMaintenance || 0))
+      : config.lastTotalKm || 0;
+
+    // Dados para o gráfico de barras (Ganhos por dia)
+    const dailyEarningsMap: Record<string, number> = {};
+    filteredEntries.forEach(e => {
+      if (e.grossAmount > 0) {
+        dailyEarningsMap[e.date] = (dailyEarningsMap[e.date] || 0) + e.grossAmount;
+      }
+    });
+    
+    const chartData = Object.entries(dailyEarningsMap)
+      .map(([date, amount]) => ({
+        date: date.split('-').reverse().slice(0, 2).join('/'), // DD/MM
+        amount,
+        fullDate: date
+      }))
+      .sort((a, b) => a.fullDate.localeCompare(b.fullDate));
 
     return {
       summary,
       quickLaunchesCount,
-      totalHours: totalMinutes,
+      totalHours: totalSeconds,
       totalExpenses,
       totalKm: summary.totalKm,
+      totalFuelLiters,
+      earningsPerKm,
+      expensePerKm,
+      avgKmPerLiter,
+      chartData,
       avgValuePerLaunch,
       avgKmPerLaunch,
       avgFuelPerLaunch,
@@ -229,7 +274,9 @@ const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config, onAddEn
       storeDeliveries,
       totalsByPayment,
       expenseTotalsByMethod,
-      expenseTotalsByCategory
+      expenseTotalsByCategory,
+      fuelMetrics,
+      totalOdometer
     };
   }, [entries, timeEntries, startDate, endDate, selectedStore, currentTime]);
 
@@ -428,6 +475,56 @@ const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config, onAddEn
         </motion.div>
       )}
 
+      {/* Gráfico de Ganhos */}
+      <motion.div variants={itemVariants} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800">
+        <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest mb-8 flex items-center gap-2">
+          <div className="w-1.5 h-4 bg-indigo-500 rounded-full"></div>
+          Relatório de Ganhos Diários
+        </h4>
+        <div className="h-64 w-full">
+          {reportData.chartData.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={reportData.chartData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis 
+                  dataKey="date" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }}
+                  dy={10}
+                />
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }}
+                  tickFormatter={(value) => `R$${value}`}
+                />
+                <Tooltip 
+                  cursor={{ fill: '#f8fafc' }}
+                  contentStyle={{ 
+                    borderRadius: '1rem', 
+                    border: 'none', 
+                    boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                    fontSize: '12px',
+                    fontWeight: 'bold'
+                  }}
+                  formatter={(value: number) => [formatCurrency(value), 'Ganho']}
+                />
+                <Bar dataKey="amount" radius={[6, 6, 0, 0]}>
+                  {reportData.chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#4f46e5' : '#6366f1'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-full flex items-center justify-center text-slate-400 text-xs font-bold uppercase">
+              Sem dados para o gráfico
+            </div>
+          )}
+        </div>
+      </motion.div>
+
       {/* Grid Bento de Métricas */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         
@@ -473,6 +570,108 @@ const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config, onAddEn
           </div>
         </motion.div>
 
+      </div>
+
+      {/* Novas Métricas de Performance */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Ganhos por Hora */}
+        <motion.div variants={itemVariants} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col justify-between relative overflow-hidden group">
+          <div className="relative z-10">
+            <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-500/10 rounded-2xl flex items-center justify-center mb-6 text-indigo-600">
+              <Clock size={24} />
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">Ganhos por Hora</span>
+            <div className="text-3xl font-black text-slate-800 dark:text-white font-mono-num tracking-tighter">{formatCurrency(reportData.avgGrossPerHour)}</div>
+          </div>
+        </motion.div>
+
+        {/* Ganhos por KM */}
+        <motion.div variants={itemVariants} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col justify-between relative overflow-hidden group">
+          <div className="relative z-10">
+            <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-500/10 rounded-2xl flex items-center justify-center mb-6 text-emerald-600">
+              <Navigation size={24} />
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">Ganhos por KM</span>
+            <div className="text-3xl font-black text-slate-800 dark:text-white font-mono-num tracking-tighter">{formatCurrency(reportData.earningsPerKm)}</div>
+          </div>
+        </motion.div>
+
+        {/* Gasto por KM */}
+        <motion.div variants={itemVariants} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col justify-between relative overflow-hidden group">
+          <div className="relative z-10">
+            <div className="w-12 h-12 bg-rose-50 dark:bg-rose-500/10 rounded-2xl flex items-center justify-center mb-6 text-rose-600">
+              <ArrowDownRight size={24} />
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">Gasto por KM</span>
+            <div className="text-3xl font-black text-slate-800 dark:text-white font-mono-num tracking-tighter">{formatCurrency(reportData.expensePerKm)}</div>
+          </div>
+        </motion.div>
+
+        {/* Litros de Combustível */}
+        <motion.div variants={itemVariants} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col justify-between relative overflow-hidden group">
+          <div className="relative z-10">
+            <div className="w-12 h-12 bg-amber-50 dark:bg-amber-500/10 rounded-2xl flex items-center justify-center mb-6 text-amber-600">
+              <Fuel size={24} />
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">Litros Abastecidos</span>
+            <div className="text-3xl font-black text-slate-800 dark:text-white font-mono-num">{reportData.totalFuelLiters.toFixed(1)} <small className="text-xs opacity-40">L</small></div>
+          </div>
+        </motion.div>
+
+        {/* Média por KM */}
+        <motion.div variants={itemVariants} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col justify-between relative overflow-hidden group">
+          <div className="relative z-10">
+            <div className="w-12 h-12 bg-blue-50 dark:bg-blue-500/10 rounded-2xl flex items-center justify-center mb-6 text-blue-600">
+              <Navigation size={24} />
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">Média (KM/L)</span>
+            <div className="text-3xl font-black text-slate-800 dark:text-white font-mono-num">{reportData.avgKmPerLiter.toFixed(1)} <small className="text-xs opacity-40">km/l</small></div>
+          </div>
+        </motion.div>
+
+        {/* Custo por KM */}
+        <motion.div variants={itemVariants} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col justify-between relative overflow-hidden group">
+          <div className="relative z-10">
+            <div className="w-12 h-12 bg-rose-50 dark:bg-rose-500/10 rounded-2xl flex items-center justify-center mb-6 text-rose-600">
+              <Navigation size={24} />
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">Custo/KM</span>
+            <div className="text-3xl font-black text-slate-800 dark:text-white font-mono-num">{formatCurrency(reportData.fuelMetrics.costPerKm)}</div>
+          </div>
+        </motion.div>
+
+        {/* Custo por Entrega */}
+        <motion.div variants={itemVariants} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col justify-between relative overflow-hidden group">
+          <div className="relative z-10">
+            <div className="w-12 h-12 bg-amber-50 dark:bg-amber-500/10 rounded-2xl flex items-center justify-center mb-6 text-amber-600">
+              <Package size={24} />
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">Custo/Entrega</span>
+            <div className="text-3xl font-black text-slate-800 dark:text-white font-mono-num">{formatCurrency(reportData.fuelMetrics.costPerDelivery)}</div>
+          </div>
+        </motion.div>
+
+        {/* Preço Médio Litro */}
+        <motion.div variants={itemVariants} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col justify-between relative overflow-hidden group">
+          <div className="relative z-10">
+            <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-500/10 rounded-2xl flex items-center justify-center mb-6 text-indigo-600">
+              <Wallet size={24} />
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">Preço Médio/L</span>
+            <div className="text-3xl font-black text-slate-800 dark:text-white font-mono-num">{formatCurrency(reportData.fuelMetrics.avgPricePerLiter)}</div>
+          </div>
+        </motion.div>
+
+        {/* Odômetro Total */}
+        <motion.div variants={itemVariants} className="bg-slate-100 dark:bg-slate-800 p-8 rounded-[2.5rem] shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col justify-between relative overflow-hidden group">
+          <div className="relative z-10">
+            <div className="w-12 h-12 bg-white dark:bg-slate-900 rounded-2xl flex items-center justify-center mb-6 text-slate-600 dark:text-slate-400">
+              <Gauge size={24} />
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Odômetro Total</span>
+            <div className="text-3xl font-black text-slate-800 dark:text-white font-mono-num">{reportData.totalOdometer.toLocaleString('pt-BR')} <small className="text-xs opacity-40">km</small></div>
+          </div>
+        </motion.div>
       </div>
 
       {/* Relatório de Métodos de Pagamento e Gastos Detalhados */}
@@ -552,7 +751,7 @@ const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config, onAddEn
             </div>
             <div className="space-y-1">
               <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tight flex items-center gap-1.5">
-                <TrendingUp size={12} className="text-indigo-500" /> Ticket/Hora
+                <TrendingUp size={12} className="text-indigo-500" /> Ganho/Hora Trab.
               </span>
               <p className="text-2xl font-black text-indigo-600 dark:text-indigo-400 font-mono-num">{formatCurrency(reportData.avgGrossPerHour)}</p>
             </div>

@@ -40,7 +40,7 @@ const CustomDialog: React.FC<CustomDialogProps> = ({
       setInputValue('');
       setIsLoading(false);
     }
-  }, [isOpen]);
+  }, [isOpen, title, inputType]);
 
   const isConfirmDisabled = (showInput && inputValidation !== '' && inputValue.trim().toLowerCase() !== inputValidation.trim().toLowerCase()) || isLoading;
 

@@ -65,16 +65,24 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
       }
       onLoginSuccess();
     } catch (err: any) {
-      console.error(err);
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
-        setError('E-mail ou senha incorretos.');
-      } else if (err.code === 'auth/email-already-in-use') {
-        setError('Este e-mail já está em uso.');
-      } else if (err.code === 'auth/weak-password') {
-        setError('A senha deve ter pelo menos 6 caracteres.');
-      } else {
-        setError('Ocorreu um erro ao processar sua solicitação.');
-      }
+      console.error("Erro no login/cadastro:", err.code, err);
+      
+      const errorMessages: Record<string, string> = {
+        'auth/user-not-found': 'E-mail não encontrado. Verifique se digitou corretamente ou crie uma conta.',
+        'auth/wrong-password': 'Senha incorreta. Tente novamente ou use "Esqueci minha senha".',
+        'auth/invalid-credential': 'E-mail ou senha incorretos. Por favor, verifique seus dados.',
+        'auth/invalid-email': 'O formato do e-mail é inválido (ex: seu@email.com).',
+        'auth/email-already-in-use': 'Este e-mail já está em uso por outra conta.',
+        'auth/weak-password': 'A senha deve ter pelo menos 6 caracteres.',
+        'auth/too-many-requests': 'Muitas tentativas falhas. Sua conta foi temporariamente bloqueada. Tente mais tarde.',
+        'auth/user-disabled': 'Esta conta foi desativada por um administrador.',
+        'auth/network-request-failed': 'Erro de conexão. Verifique sua internet ou o servidor.',
+        'auth/operation-not-allowed': 'O login por e-mail/senha não está habilitado no servidor.',
+        'auth/popup-closed-by-user': 'A janela de autenticação foi fechada antes de concluir.',
+        'auth/internal-error': 'Erro interno no servidor. Tente novamente em instantes.'
+      };
+
+      setError(errorMessages[err.code] || 'Ocorreu um erro inesperado. Tente novamente.');
     } finally {
       setLoading(false);
     }

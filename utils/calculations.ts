@@ -101,9 +101,10 @@ export const calculateKmClosing = (
   lastTotalKm: number,
   fuelPrice: number,
   date: string,
-  time: string
+  time: string,
+  kmType: 'work' | 'personal' = 'work'
 ): DailyEntry => {
-  const kmDriven = lastTotalKm > 0 ? totalKm - lastTotalKm : 0;
+  const kmDriven = (kmType === 'work' && lastTotalKm > 0) ? totalKm - lastTotalKm : 0;
   
   return {
     id: generateId(),
@@ -119,7 +120,8 @@ export const calculateKmClosing = (
     kmDriven: kmDriven,
     kmAtMaintenance: totalKm, 
     fuelPrice: fuelPrice,
-    category: 'others'
+    category: 'others',
+    kmType
   };
 };
 

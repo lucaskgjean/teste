@@ -1,7 +1,7 @@
 
-import React from 'react';
-import { DailyEntry, AppConfig } from '../types';
-import { formatCurrency, getWeeklySummary, calculateFuelMetrics, getLocalDateStr } from '../utils/calculations';
+import React, { useState, useEffect, useMemo } from 'react';
+import { DailyEntry, AppConfig, TimeEntry } from '../types';
+import { formatCurrency, getWeeklySummary, calculateFuelMetrics, getLocalDateStr, calculateDuration, formatDuration } from '../utils/calculations';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { motion } from 'motion/react';
 import { 
@@ -15,12 +15,14 @@ import {
   Navigation,
   Package,
   Clock,
-  ChevronRight
+  ChevronRight,
+  Gauge
 } from 'lucide-react';
 import QuickLaunch from './QuickLaunch';
 
 interface DashboardProps {
   entries: DailyEntry[];
+  timeEntries: TimeEntry[];
   config: AppConfig;
   onEdit: (entry: DailyEntry) => void;
   onDelete: (id: string) => void;
@@ -28,9 +30,19 @@ interface DashboardProps {
   onAdd: (entry: DailyEntry) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ entries, config, onEdit, onDelete, onNavigate, onAdd }) => {
+const Dashboard: React.FC<DashboardProps> = ({ entries, timeEntries, config, onEdit, onDelete, onNavigate, onAdd }) => {
   const todayStr = getLocalDateStr();
   const currentMonthStr = todayStr.substring(0, 7);
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(new Date());
+    }, 10000); // Atualiza a cada 10 segundos para o cronômetro
+    return () => clearInterval(interval);
+  }, []);
+
+  const currentTime = now.toTimeString().slice(0, 5);
 
   const getStartOfWeek = (d: Date) => {
     const day = d.getDay();
@@ -51,6 +63,22 @@ const Dashboard: React.FC<DashboardProps> = ({ entries, config, onEdit, onDelete
   const weekSum = { ...getWeeklySummary(weekEntries), count: weekEntries.filter(e => e.grossAmount > 0).length };
   const monthSum = { ...getWeeklySummary(monthEntries), count: monthEntries.filter(e => e.grossAmount > 0).length };
   const generalSum = getWeeklySummary(entries);
+
+  // Cálculo de Horas Trabalhadas Hoje em Tempo Real
+  const todayTimeEntries = timeEntries.filter(t => t.date === todayStr);
+  const todayWorkedSeconds = todayTimeEntries.reduce((acc, curr) => {
+    if (curr.startTime && curr.endTime) {
+      return acc + calculateDuration(curr.startTime, curr.endTime, curr.breakDuration || 0);
+    } else if (curr.startTime && !curr.endTime) {
+      return acc + calculateDuration(curr.startTime, currentTime, 0);
+    }
+    return acc;
+  }, 0);
+
+  const todayHoursDecimal = todayWorkedSeconds / 3600;
+  const todayGrossPerHour = todayHoursDecimal > 0 ? todaySum.totalGross / todayHoursDecimal : 0;
+  const todayEarningsPerKm = todaySum.totalKm && todaySum.totalKm > 0 ? todaySum.totalGross / todaySum.totalKm : 0;
+  const todayTotalSpent = todaySum.totalSpentFuel + todaySum.totalSpentFood + todaySum.totalSpentMaintenance + (todaySum.totalSpentOthers || 0);
 
   const fuelMetrics = calculateFuelMetrics(entries);
 
@@ -169,8 +197,8 @@ const Dashboard: React.FC<DashboardProps> = ({ entries, config, onEdit, onDelete
           <div>
             <span className="text-[10px] font-black uppercase tracking-widest opacity-70 block mb-1">Hoje</span>
             <div className="flex items-baseline justify-between gap-2">
-              <div className="text-2xl font-black font-mono-num tracking-tighter">{formatCurrency(todaySum.totalGross)}</div>
-              <div className="text-[10px] font-black opacity-80 bg-white/10 px-2 py-0.5 rounded-md">Líq: {formatCurrency(todaySum.totalNet)}</div>
+              <div className="text-2xl font-black font-mono-num tracking-tighter">{formatCurrency(todaySum.totalNet)}</div>
+              <div className="text-[10px] font-black opacity-80 bg-white/10 px-2 py-0.5 rounded-md">Bruto: {formatCurrency(todaySum.totalGross)}</div>
             </div>
           </div>
         </motion.div>
@@ -227,14 +255,16 @@ const Dashboard: React.FC<DashboardProps> = ({ entries, config, onEdit, onDelete
         </motion.div>
 
       </div>
-
-      {/* 3. Métricas Rápidas (Grid 4 colunas) */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      
+      {/* 3. Métricas de Hoje */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {[
-          { label: 'Custo/KM', value: formatCurrency(fuelMetrics.costPerKm), icon: <Navigation size={16} />, color: 'text-rose-500', bg: 'bg-rose-50 dark:bg-rose-500/10' },
-          { label: 'Custo/Entrega', value: formatCurrency(fuelMetrics.costPerDelivery), icon: <Package size={16} />, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-500/10' },
-          { label: 'Média KM/L', value: `${fuelMetrics.kmPerLiter.toFixed(1)} km/l`, icon: <Fuel size={16} />, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-500/10' },
-          { label: 'Preço Médio/L', value: formatCurrency(fuelMetrics.avgPricePerLiter), icon: <Wallet size={16} />, color: 'text-indigo-500', bg: 'bg-indigo-50 dark:bg-indigo-500/10' },
+          { label: 'KM Hoje', value: `${todaySum.totalKm?.toFixed(0)} km`, icon: <Navigation size={16} />, color: 'text-indigo-500', bg: 'bg-indigo-50 dark:bg-indigo-500/10' },
+          { label: 'Horas Trab.', value: formatDuration(todayWorkedSeconds), icon: <Clock size={16} />, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-500/10' },
+          { label: 'Litros Hoje', value: `${todaySum.totalLiters?.toFixed(1)} L`, icon: <Fuel size={16} />, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-500/10' },
+          { label: 'Gasto Hoje', value: formatCurrency(todayTotalSpent), icon: <Wallet size={16} />, color: 'text-rose-500', bg: 'bg-rose-50 dark:bg-rose-500/10' },
+          { label: 'Ganho/Hora', value: formatCurrency(todayGrossPerHour), icon: <TrendingUp size={16} />, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-500/10' },
+          { label: 'Ganho/KM', value: formatCurrency(todayEarningsPerKm), icon: <Navigation size={16} />, color: 'text-violet-500', bg: 'bg-violet-50 dark:bg-violet-500/10' },
         ].map((metric, i) => (
           <motion.div 
             key={i}
@@ -246,7 +276,7 @@ const Dashboard: React.FC<DashboardProps> = ({ entries, config, onEdit, onDelete
             </div>
             <div>
               <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tight block">{metric.label}</span>
-              <span className="text-sm font-black text-slate-800 dark:text-white font-mono-num">{metric.value}</span>
+              <span className="text-xs font-black text-slate-800 dark:text-white font-mono-num">{metric.value}</span>
             </div>
           </motion.div>
         ))}

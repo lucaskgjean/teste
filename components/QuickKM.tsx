@@ -21,6 +21,7 @@ interface QuickKMProps {
 const QuickKM: React.FC<QuickKMProps> = ({ onAdd, config, entries }) => {
   const [totalKm, setTotalKm] = useState<string>('');
   const [date, setDate] = useState<string>(getLocalDateStr());
+  const [kmType, setKmType] = useState<'work' | 'personal'>('work');
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Calculate fuel price based on expenses for the selected date
@@ -47,7 +48,8 @@ const QuickKM: React.FC<QuickKMProps> = ({ onAdd, config, entries }) => {
     if (isNaN(numTotalKm) || numTotalKm <= 0) return;
 
     const lastKm = config.lastTotalKm || 0;
-    const kmDriven = lastKm > 0 ? numTotalKm - lastKm : 0;
+    // Se for pessoal (-), kmDriven é 0 para não contar no faturamento/custo por km
+    const kmDriven = (kmType === 'work' && lastKm > 0) ? numTotalKm - lastKm : 0;
 
     const newEntry: DailyEntry = {
       id: generateId(),
@@ -62,11 +64,13 @@ const QuickKM: React.FC<QuickKMProps> = ({ onAdd, config, entries }) => {
       netAmount: 0,
       kmDriven: kmDriven,
       kmAtMaintenance: numTotalKm, 
-      fuelPrice: fuelPrice
+      fuelPrice: fuelPrice,
+      kmType: kmType
     };
 
     onAdd(newEntry);
     setTotalKm('');
+    setKmType('work');
     setShowAdvanced(false);
   };
 
@@ -83,13 +87,31 @@ const QuickKM: React.FC<QuickKMProps> = ({ onAdd, config, entries }) => {
           </div>
           Fechamento de KM
         </h3>
-        <button 
-          type="button"
-          onClick={() => setShowAdvanced(!showAdvanced)}
-          className="flex items-center gap-1 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
-        >
-          {showAdvanced ? <><ChevronUp size={14} /> Menos</> : <><ChevronDown size={14} /> Data</>}
-        </button>
+        <div className="flex items-center gap-4">
+          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+            <button
+              type="button"
+              onClick={() => setKmType('work')}
+              className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-black transition-all ${kmType === 'work' ? 'bg-rose-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+            >
+              +
+            </button>
+            <button
+              type="button"
+              onClick={() => setKmType('personal')}
+              className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-black transition-all ${kmType === 'personal' ? 'bg-slate-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+            >
+              -
+            </button>
+          </div>
+          <button 
+            type="button"
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="flex items-center gap-1 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
+          >
+            {showAdvanced ? <><ChevronUp size={14} /> Menos</> : <><ChevronDown size={14} /> Data</>}
+          </button>
+        </div>
       </div>
       
       <form onSubmit={handleSubmit} className="space-y-6">

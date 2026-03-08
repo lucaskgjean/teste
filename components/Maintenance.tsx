@@ -210,9 +210,14 @@ const Maintenance: React.FC<MaintenanceProps> = ({ entries, config, onEdit, onAd
                       <Navigation size={20} />
                     </div>
                     <div>
-                      <h5 className="font-black text-slate-800 dark:text-white leading-tight">{entry.kmAtMaintenance?.toLocaleString()} KM</h5>
+                      <div className="flex items-center gap-2">
+                        <h5 className="font-black text-slate-800 dark:text-white leading-tight">{entry.kmAtMaintenance?.toLocaleString()} KM</h5>
+                        <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${entry.kmType === 'personal' ? 'bg-slate-100 dark:bg-slate-800 text-slate-400' : 'bg-rose-500 text-white'}`}>
+                          {entry.kmType === 'personal' ? '-' : '+'}
+                        </span>
+                      </div>
                       <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mt-1">
-                        {new Date(entry.date + 'T12:00:00').toLocaleDateString('pt-BR')} • <span className="text-emerald-500">+{entry.kmDriven?.toFixed(1)} KM</span>
+                        {new Date(entry.date + 'T12:00:00').toLocaleDateString('pt-BR')} • <span className={entry.kmType === 'personal' ? 'text-slate-400' : 'text-emerald-500'}>{entry.kmType === 'personal' ? 'Pessoal' : `+${entry.kmDriven?.toFixed(1)} KM`}</span>
                       </p>
                     </div>
                   </div>

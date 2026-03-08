@@ -25,6 +25,7 @@ const EditModal: React.FC<EditModalProps> = ({ entry, config, onSave, onClose })
   const [kmDriven, setKmDriven] = useState<string>(entry.kmDriven?.toString() || '');
   const [fuelPrice, setFuelPrice] = useState<string>(entry.fuelPrice?.toString() || '');
   const [kmAtMaintenance, setKmAtMaintenance] = useState<string>(entry.kmAtMaintenance?.toString() || '');
+  const [kmType, setKmType] = useState<'work' | 'personal'>(entry.kmType || 'work');
   const [liters, setLiters] = useState<string>(entry.liters?.toString() || '');
   const [paymentMethod, setPaymentMethod] = useState<'money' | 'pix' | 'debito' | 'caderno'>(entry.paymentMethod || 'pix');
   const [isPaid, setIsPaid] = useState<boolean>(entry.isPaid || false);
@@ -48,7 +49,7 @@ const EditModal: React.FC<EditModalProps> = ({ entry, config, onSave, onClose })
     let updated: DailyEntry;
     if (isKmClosing) {
       updated = {
-        ...calculateKmClosing(numKmAtMaintenance || 0, config.lastTotalKm || 0, numFuelPrice || 0, date, time),
+        ...calculateKmClosing(numKmAtMaintenance || 0, config.lastTotalKm || 0, numFuelPrice || 0, date, time, kmType),
         id: entry.id
       };
     } else if (isIncome) {
@@ -86,6 +87,25 @@ const EditModal: React.FC<EditModalProps> = ({ entry, config, onSave, onClose })
         <form onSubmit={handleSave} className="p-8 space-y-5 max-h-[80vh] overflow-y-auto">
           {isKmClosing ? (
             <div className="space-y-5">
+              <div className="flex justify-between items-center">
+                <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Tipo de KM</label>
+                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setKmType('work')}
+                    className={`px-4 py-2 flex items-center justify-center rounded-lg text-sm font-black transition-all ${kmType === 'work' ? 'bg-rose-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                  >
+                    +
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setKmType('personal')}
+                    className={`px-4 py-2 flex items-center justify-center rounded-lg text-sm font-black transition-all ${kmType === 'personal' ? 'bg-slate-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                  >
+                    -
+                  </button>
+                </div>
+              </div>
               <div>
                 <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase mb-2 tracking-widest">KM Total do Veículo</label>
                 <input 
