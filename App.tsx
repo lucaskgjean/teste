@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { DailyEntry, AppConfig, DEFAULT_CONFIG, TimeEntry } from './types';
 import QuickLaunch from './components/QuickLaunch';
 import QuickExpense from './components/QuickExpense';
@@ -27,6 +27,7 @@ import {
   Cloud,
   Settings as SettingsIcon,
   ChevronRight,
+  ArrowLeft,
   Moon,
   Sun,
   RefreshCw,
@@ -41,6 +42,7 @@ import AIReportAssistant from './components/AIReportAssistant';
 import { notificationService } from './services/notificationService';
 import { authService } from './services/authService';
 import Login from './components/Login';
+import VerificationBanner from './components/VerificationBanner';
 import { User as FirebaseUser } from 'firebase/auth';
 import { isUserAdmin } from './constants';
 
@@ -59,6 +61,7 @@ const App: React.FC = () => {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
+  const topRef = useRef<HTMLDivElement>(null);
   const [dialog, setDialog] = useState<{
     isOpen: boolean;
     title: string;
@@ -66,6 +69,8 @@ const App: React.FC = () => {
     type?: 'info' | 'warning' | 'danger' | 'success';
     onConfirm: (val?: string) => void;
     showInput?: boolean;
+    inputType?: string;
+    inputPlaceholder?: string;
     inputValidation?: string;
   }>({
     isOpen: false,
@@ -133,7 +138,22 @@ const App: React.FC = () => {
 
   // Scroll to top on tab change
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const scrollToTop = () => {
+      window.scrollTo(0, 0);
+      document.body.scrollTop = 0;
+      document.documentElement.scrollTop = 0;
+      if (topRef.current) {
+        topRef.current.scrollIntoView({ behavior: 'auto', block: 'start' });
+      }
+    };
+
+    scrollToTop();
+    const timer = setTimeout(scrollToTop, 100);
+    const timer2 = setTimeout(scrollToTop, 300);
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(timer2);
+    };
   }, [activeTab]);
 
   // Theme application
@@ -176,14 +196,14 @@ const App: React.FC = () => {
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, [config.themeMode]);
 
-  // Scroll to top on tab change
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [activeTab]);
-
   const handleTabChange = (tab: typeof activeTab) => {
     if (tab === activeTab) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      document.body.scrollTo({ top: 0, behavior: 'smooth' });
+      document.documentElement.scrollTo({ top: 0, behavior: 'smooth' });
+      if (topRef.current) {
+        topRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     } else {
       setPrevTab(activeTab);
       setActiveTab(tab);
@@ -286,6 +306,28 @@ const App: React.FC = () => {
       storageService.saveTimeEntries(updatedTimeEntries);
     }
   }, [isInitialLoading, timeEntries, timeEntries.length]);
+
+  // 3. Garantir createdAt para usuários existentes/novos
+  useEffect(() => {
+    if (authChecked && user && !user.emailVerified && config.profile && !config.profile.createdAt) {
+      const now = new Date().toISOString();
+      setConfig(prev => ({
+        ...prev,
+        profile: {
+          ...prev.profile,
+          createdAt: now
+        }
+      }));
+      // Salva para persistir
+      storageService.saveConfig({
+        ...config,
+        profile: {
+          ...(config.profile || {}),
+          createdAt: now
+        }
+      }, user.uid, config.profile?.isPro);
+    }
+  }, [authChecked, user, config.profile?.createdAt]);
 
   // Carregamento Inicial Otimizado (Local Primeiro -> Nuvem depois)
   useEffect(() => {
@@ -557,10 +599,15 @@ const App: React.FC = () => {
     }
   };
 
-  const deleteAccount = async () => {
+  const deleteAccount = async (password?: string) => {
     if (!user) return;
     
     try {
+      // Se a senha foi fornecida, reautentica primeiro
+      if (password) {
+        await authService.reauthenticate(password);
+      }
+
       // 1. Limpar dados no Firestore
       await storageService.resetData(user.uid);
       // 2. Limpar dados locais
@@ -571,10 +618,13 @@ const App: React.FC = () => {
     } catch (error: any) {
       console.error("Erro ao excluir conta:", error);
       if (error.code === 'auth/requires-recent-login') {
-        showToast("Por segurança, faça login novamente antes de excluir.", "error");
-        await authService.logout();
+        throw error; // Repassa para o componente Settings tratar
+      } else if (error.code === 'auth/wrong-password') {
+        showToast("Senha incorreta.", "error");
+        throw error;
       } else {
         showToast("Erro ao excluir conta.", "error");
+        throw error;
       }
     }
   };
@@ -611,7 +661,8 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen pb-28 bg-slate-50 dark:bg-slate-950 font-sans antialiased text-slate-900 dark:text-slate-100 selection:bg-indigo-100 dark:selection:bg-indigo-500/30">
+    <div className="min-h-screen pb-28 bg-slate-50 dark:bg-slate-950 font-sans antialiased text-slate-900 dark:text-slate-100 selection:bg-indigo-100 dark:selection:bg-indigo-500/30 relative">
+      <div ref={topRef} className="absolute top-0 left-0 w-0 h-0 pointer-events-none opacity-0" aria-hidden="true" />
       <AnimatePresence>
         {toast && (
           <motion.div 
@@ -645,10 +696,20 @@ const App: React.FC = () => {
         message={dialog.message}
         type={dialog.type}
         showInput={dialog.showInput}
+        inputType={dialog.inputType}
+        inputPlaceholder={dialog.inputPlaceholder}
         inputValidation={dialog.inputValidation}
       />
 
-      <header className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 sticky top-0 z-40 shadow-sm">
+      {user && !user.emailVerified && (
+        <VerificationBanner 
+          createdAt={(config.profile?.createdAt && config.profile.createdAt !== '') ? config.profile.createdAt : new Date().toISOString()} 
+          onLogout={() => authService.logout()} 
+          showToast={showToast}
+        />
+      )}
+
+      <header id="app-top" className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 sticky top-0 z-40 shadow-sm">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab('dashboard')}>
             <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-md shadow-indigo-200">
@@ -691,8 +752,15 @@ const App: React.FC = () => {
             >
               <RefreshCw size={20} />
             </button>
-            <button onClick={handleSettingsClick} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-400 hover:text-indigo-600 transition-colors" title="Configurações">
-              <SettingsIcon size={20} />
+            <button onClick={handleSettingsClick} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-400 hover:text-indigo-600 transition-colors" title={activeTab === 'settings' ? "Voltar" : "Configurações"}>
+              <motion.div
+                key={activeTab === 'settings' ? 'back' : 'settings'}
+                initial={{ rotate: -90, opacity: 0 }}
+                animate={{ rotate: 0, opacity: 1 }}
+                transition={{ duration: 0.2 }}
+              >
+                {activeTab === 'settings' ? <ArrowLeft size={20} /> : <SettingsIcon size={20} />}
+              </motion.div>
             </button>
           </div>
         </div>

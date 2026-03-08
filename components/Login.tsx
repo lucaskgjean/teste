@@ -3,7 +3,9 @@ import React, { useState } from 'react';
 import { authService } from '../services/authService';
 import { isFirebaseConfigured } from '../services/firebase';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mail, Lock, LogIn, UserPlus, AlertCircle, Loader2, Sparkles, Settings } from 'lucide-react';
+import { Mail, Lock, LogIn, UserPlus, AlertCircle, Loader2, Sparkles, Settings, CheckCircle2 } from 'lucide-react';
+import { TERMS_OF_USE } from '../constants';
+import CustomDialog from './CustomDialog';
 
 interface LoginProps {
   onLoginSuccess: () => void;
@@ -13,6 +15,13 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [nickname, setNickname] = useState('');
+  const [phone, setPhone] = useState('');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [acceptedMarketing, setAcceptedMarketing] = useState(false);
+  const [showTermsDialog, setShowTermsDialog] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,6 +37,17 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
       setError(`Configuração do Firebase incompleta. Faltando: ${missing.join(', ') || 'Chaves principais'}. Verifique as variáveis de ambiente.`);
       return;
     }
+
+    if (!isLogin && (!firstName || !lastName || !phone)) {
+      setError('Por favor, preencha todos os campos obrigatórios.');
+      return;
+    }
+
+    if (!isLogin && !acceptedTerms) {
+      setError('Você precisa aceitar os termos de uso para criar uma conta.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -35,7 +55,13 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
       if (isLogin) {
         await authService.login(email, password);
       } else {
-        await authService.signup(email, password);
+        await authService.signup(email, password, {
+          firstName,
+          lastName,
+          nickname,
+          phone,
+          acceptedMarketing
+        });
       }
       onLoginSuccess();
     } catch (err: any) {
@@ -108,6 +134,92 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
+            {!isLogin && (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Nome</label>
+                    <input 
+                      type="text" 
+                      required
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      placeholder="João"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-4 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-slate-700 disabled:opacity-50"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Sobrenome</label>
+                    <input 
+                      type="text" 
+                      required
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      placeholder="Silva"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-4 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-slate-700 disabled:opacity-50"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Apelido (Opcional)</label>
+                  <input 
+                    type="text" 
+                    value={nickname}
+                    onChange={(e) => setNickname(e.target.value)}
+                    placeholder="Como quer ser chamado"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-4 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-slate-700 disabled:opacity-50"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Celular</label>
+                  <input 
+                    type="tel" 
+                    required
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="(00) 00000-0000"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-4 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-slate-700 disabled:opacity-50"
+                  />
+                </div>
+
+                <div className="flex items-start gap-3 p-2">
+                  <button
+                    type="button"
+                    onClick={() => setAcceptedTerms(!acceptedTerms)}
+                    className={`mt-1 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all shrink-0 ${acceptedTerms ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-800 bg-slate-950 text-transparent'}`}
+                  >
+                    <CheckCircle2 size={14} />
+                  </button>
+                  <p className="text-[10px] font-bold text-slate-500 leading-relaxed">
+                    Eu li e aceito os{' '}
+                    <button 
+                      type="button"
+                      onClick={() => setShowTermsDialog(true)}
+                      className="text-indigo-500 hover:text-indigo-400 underline"
+                    >
+                      Termos de Uso e Privacidade
+                    </button>
+                    {' '}do RotaFinanceira.
+                  </p>
+                </div>
+
+                <div className="flex items-start gap-3 p-2">
+                  <button
+                    type="button"
+                    onClick={() => setAcceptedMarketing(!acceptedMarketing)}
+                    className={`mt-1 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all shrink-0 ${acceptedMarketing ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-800 bg-slate-950 text-transparent'}`}
+                  >
+                    <CheckCircle2 size={14} />
+                  </button>
+                  <p className="text-[10px] font-bold text-slate-500 leading-relaxed">
+                    Autorizo o envio de novidades, dicas financeiras e promoções exclusivas por e-mail e WhatsApp.
+                  </p>
+                </div>
+              </>
+            )}
+
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">E-mail</label>
               <div className="relative">
@@ -195,6 +307,20 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           </div>
         </div>
       </motion.div>
+
+      <CustomDialog
+        isOpen={showTermsDialog}
+        onClose={() => setShowTermsDialog(false)}
+        onConfirm={() => {
+          setAcceptedTerms(true);
+          setShowTermsDialog(false);
+        }}
+        title="Termos de Uso"
+        message={TERMS_OF_USE}
+        confirmText="Aceitar Termos"
+        cancelText="Fechar"
+        type="info"
+      />
     </div>
   );
 };

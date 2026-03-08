@@ -18,7 +18,7 @@ interface SettingsProps {
   onOpenSubscription: () => void;
   showToast: (message: string, type?: 'success' | 'error') => void;
   onResetData: (type: 'total' | 'period', start?: string, end?: string) => Promise<void>;
-  onDeleteAccount: () => Promise<void>;
+  onDeleteAccount: (password?: string) => Promise<void>;
 }
 
 const Settings: React.FC<SettingsProps> = ({ config, entries, timeEntries, onChange, onImport, onOpenSubscription, showToast, onResetData, onDeleteAccount }) => {
@@ -33,6 +33,8 @@ const Settings: React.FC<SettingsProps> = ({ config, entries, timeEntries, onCha
     type?: 'info' | 'warning' | 'danger' | 'success';
     onConfirm: (val?: string) => void;
     showInput?: boolean;
+    inputType?: string;
+    inputPlaceholder?: string;
     inputValidation?: string;
     confirmText?: string;
     cancelText?: string;
@@ -209,6 +211,30 @@ const Settings: React.FC<SettingsProps> = ({ config, entries, timeEntries, onCha
 
   const handleDeleteAccount = async () => {
     const userEmail = authService.auth?.currentUser?.email || '';
+    
+    const showPasswordPrompt = () => {
+      setDialog({
+        isOpen: true,
+        title: 'Confirme sua Senha',
+        message: 'Por segurança, digite sua senha para confirmar a exclusão da conta.',
+        type: 'warning',
+        showInput: true,
+        inputType: 'password',
+        inputPlaceholder: 'Sua senha atual',
+        confirmText: 'Confirmar Exclusão',
+        onConfirm: async (password) => {
+          if (!password) return;
+          try {
+            await onDeleteAccount(password);
+            setDialog(prev => ({ ...prev, isOpen: false }));
+          } catch (error: any) {
+            console.error("Erro ao excluir conta com senha:", error);
+            // O erro já é tratado no App.tsx com toast
+          }
+        }
+      });
+    };
+
     setDialog({
       isOpen: true,
       title: 'Excluir Conta',
@@ -216,13 +242,17 @@ const Settings: React.FC<SettingsProps> = ({ config, entries, timeEntries, onCha
       type: 'danger',
       showInput: true,
       inputValidation: userEmail,
+      inputPlaceholder: 'Digite seu e-mail para confirmar',
       onConfirm: async () => {
         try {
           await onDeleteAccount();
           setDialog(prev => ({ ...prev, isOpen: false }));
-        } catch (error) {
-          console.error("Erro ao excluir conta:", error);
-          showToast("Erro ao excluir conta.", "error");
+        } catch (error: any) {
+          if (error.code === 'auth/requires-recent-login') {
+            showPasswordPrompt();
+          } else {
+            console.error("Erro ao excluir conta:", error);
+          }
         }
       }
     });
@@ -329,6 +359,8 @@ const Settings: React.FC<SettingsProps> = ({ config, entries, timeEntries, onCha
         message={dialog.message}
         type={dialog.type}
         showInput={dialog.showInput}
+        inputType={dialog.inputType}
+        inputPlaceholder={dialog.inputPlaceholder}
         inputValidation={dialog.inputValidation}
         confirmText={dialog.confirmText}
         cancelText={dialog.cancelText}
@@ -407,17 +439,31 @@ const Settings: React.FC<SettingsProps> = ({ config, entries, timeEntries, onCha
 
           {/* CAMPOS DE PERFIL */}
           <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 space-y-4">
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                <User size={12} /> Nome Completo
-              </label>
-              <input 
-                type="text" 
-                value={localConfig.profile?.displayName || ''}
-                onChange={(e) => handleProfileChange('displayName', e.target.value)}
-                placeholder="Ex: João Silva"
-                className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 ring-indigo-500/20 outline-none"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                  <User size={12} /> Nome
+                </label>
+                <input 
+                  type="text" 
+                  value={localConfig.profile?.firstName || ''}
+                  onChange={(e) => handleProfileChange('firstName', e.target.value)}
+                  placeholder="Ex: João"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 ring-indigo-500/20 outline-none"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                  <User size={12} /> Sobrenome
+                </label>
+                <input 
+                  type="text" 
+                  value={localConfig.profile?.lastName || ''}
+                  onChange={(e) => handleProfileChange('lastName', e.target.value)}
+                  placeholder="Ex: Silva"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 ring-indigo-500/20 outline-none"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">

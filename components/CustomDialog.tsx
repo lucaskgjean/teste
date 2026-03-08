@@ -13,6 +13,7 @@ interface CustomDialogProps {
   confirmText?: string;
   cancelText?: string;
   showInput?: boolean;
+  inputType?: string;
   inputPlaceholder?: string;
   inputValidation?: string; // Text that must match to enable confirm
 }
@@ -27,6 +28,7 @@ const CustomDialog: React.FC<CustomDialogProps> = ({
   confirmText = 'Confirmar',
   cancelText = 'Cancelar',
   showInput = false,
+  inputType = 'text',
   inputPlaceholder = '',
   inputValidation = ''
 }) => {
@@ -136,7 +138,7 @@ const CustomDialog: React.FC<CustomDialogProps> = ({
                   )}
                   <div className="relative">
                     <input
-                      type="text"
+                      type={inputType}
                       value={inputValue}
                       onChange={(e) => setInputValue(e.target.value)}
                       placeholder={inputPlaceholder}
