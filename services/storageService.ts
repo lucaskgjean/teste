@@ -1,5 +1,6 @@
 
 import localforage from 'localforage';
+import CryptoJS from 'crypto-js';
 import { DailyEntry, TimeEntry, AppConfig } from '../types';
 import { db } from './firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
@@ -15,7 +16,31 @@ const KEYS = {
   ENTRIES: 'rota_financeira_data',
   TIME_ENTRIES: 'rota_financeira_time',
   CONFIG: 'rota_financeira_config',
-  MIGRATED: 'rota_financeira_migrated_v2'
+  MIGRATED: 'rota_financeira_migrated_v3' // Incremented version for new encryption/isolation
+};
+
+// Funções de Criptografia
+const encrypt = (data: any, key: string) => {
+  if (!data) return null;
+  try {
+    return CryptoJS.AES.encrypt(JSON.stringify(data), key).toString();
+  } catch (e) {
+    console.error("Erro na criptografia:", e);
+    return null;
+  }
+};
+
+const decrypt = (ciphertext: string | null, key: string) => {
+  if (!ciphertext) return null;
+  try {
+    const bytes = CryptoJS.AES.decrypt(ciphertext, key);
+    const decryptedStr = bytes.toString(CryptoJS.enc.Utf8);
+    if (!decryptedStr) return null;
+    return JSON.parse(decryptedStr);
+  } catch (e) {
+    console.error("Erro na descriptografia:", e);
+    return null;
+  }
 };
 
 // Função auxiliar para remover valores 'undefined' antes de salvar no Firestore
@@ -25,47 +50,62 @@ const sanitizeForFirestore = (data: any) => {
 
 export const storageService = {
   /**
-   * Migra dados do localStorage para o IndexedDB se necessário
+   * Migra dados do localStorage/IndexedDB antigo para o novo formato isolado e criptografado
    */
-  async migrateFromLocalStorage() {
-    const isMigrated = await localforage.getItem(KEYS.MIGRATED);
+  async migrateFromLocalStorage(userId: string) {
+    if (!userId) return;
+    
+    const isMigrated = await localforage.getItem(KEYS.MIGRATED + '_' + userId);
     if (isMigrated) return;
 
-    console.log('Iniciando migração de dados do localStorage para IndexedDB...');
+    console.log('Iniciando migração de dados isolados para o usuário:', userId);
 
-    const savedEntries = localStorage.getItem(KEYS.ENTRIES);
-    const savedTimeEntries = localStorage.getItem(KEYS.TIME_ENTRIES);
-    const savedConfig = localStorage.getItem(KEYS.CONFIG);
+    // Tenta pegar dados do formato antigo (não isolado)
+    const oldEntries = await localforage.getItem<DailyEntry[]>('rota_financeira_data');
+    const oldTimeEntries = await localforage.getItem<TimeEntry[]>('rota_financeira_time');
+    const oldConfig = await localforage.getItem<AppConfig>('rota_financeira_config');
 
-    if (savedEntries) {
-      await localforage.setItem(KEYS.ENTRIES, JSON.parse(savedEntries));
+    // Se existirem dados antigos, salva no novo formato isolado para este usuário
+    if (oldEntries) {
+      await this.saveEntries(oldEntries, userId, false);
     }
-    if (savedTimeEntries) {
-      await localforage.setItem(KEYS.TIME_ENTRIES, JSON.parse(savedTimeEntries));
+    if (oldTimeEntries) {
+      await this.saveTimeEntries(oldTimeEntries, userId, false);
     }
-    if (savedConfig) {
-      await localforage.setItem(KEYS.CONFIG, JSON.parse(savedConfig));
+    if (oldConfig) {
+      await this.saveConfig(oldConfig, userId, false);
     }
 
-    await localforage.setItem(KEYS.MIGRATED, true);
-    console.log('Migração concluída com sucesso!');
+    // Marca como migrado para este usuário específico
+    await localforage.setItem(KEYS.MIGRATED + '_' + userId, true);
+    
+    // Opcional: Limpar dados antigos globais para evitar vazamento futuro
+    // Mas vamos manter por segurança por enquanto, ou limpar se tivermos certeza
+    console.log('Migração isolada concluída!');
   },
 
-  async getLocalEntries(): Promise<DailyEntry[]> {
-    const data = await localforage.getItem<DailyEntry[]>(KEYS.ENTRIES);
-    return data || [];
+  async getLocalEntries(userId: string): Promise<DailyEntry[]> {
+    if (!userId) return [];
+    const key = `${KEYS.ENTRIES}_${userId}`;
+    const encrypted = await localforage.getItem<string>(key);
+    return decrypt(encrypted, userId) || [];
   },
 
-  async getLocalTimeEntries(): Promise<TimeEntry[]> {
-    const data = await localforage.getItem<TimeEntry[]>(KEYS.TIME_ENTRIES);
-    return data || [];
+  async getLocalTimeEntries(userId: string): Promise<TimeEntry[]> {
+    if (!userId) return [];
+    const key = `${KEYS.TIME_ENTRIES}_${userId}`;
+    const encrypted = await localforage.getItem<string>(key);
+    return decrypt(encrypted, userId) || [];
   },
 
-  async getLocalConfig(): Promise<AppConfig | null> {
-    return await localforage.getItem<AppConfig>(KEYS.CONFIG);
+  async getLocalConfig(userId: string): Promise<AppConfig | null> {
+    if (!userId) return null;
+    const key = `${KEYS.CONFIG}_${userId}`;
+    const encrypted = await localforage.getItem<string>(key);
+    return decrypt(encrypted, userId);
   },
 
-  async getEntries(userId?: string): Promise<DailyEntry[]> {
+  async getEntries(userId: string): Promise<DailyEntry[]> {
     if (userId && db) {
       try {
         const docRef = doc(db, 'users', userId);
@@ -73,39 +113,40 @@ export const storageService = {
         if (docSnap.exists()) {
           const data = docSnap.data();
           if (data.entries) {
-            await localforage.setItem(KEYS.ENTRIES, data.entries);
+            await this.saveEntries(data.entries, userId, false); // Salva localmente (criptografado)
             return data.entries;
           }
         }
       } catch (e: any) {
-        // Silenciar erro se for apenas falta de conexão, pois temos o fallback local
         if (e.code !== 'unavailable' && !e.message?.includes('offline')) {
           console.error("Erro ao buscar entradas do Firestore:", e);
         }
       }
     }
-    const data = await localforage.getItem<DailyEntry[]>(KEYS.ENTRIES);
-    return data || [];
+    return await this.getLocalEntries(userId);
   },
 
-  async saveEntries(entries: DailyEntry[], userId?: string, isPro?: boolean) {
-    console.log(`Salvando ${entries.length} entradas no IndexedDB...`);
-    await localforage.setItem(KEYS.ENTRIES, entries);
-    if (userId && db && isPro) {
+  async saveEntries(entries: DailyEntry[], userId: string, syncToCloud: boolean = true) {
+    if (!userId) return;
+    
+    const key = `${KEYS.ENTRIES}_${userId}`;
+    const encrypted = encrypt(entries, userId);
+    if (encrypted) {
+      await localforage.setItem(key, encrypted);
+    }
+
+    if (syncToCloud && db) {
       try {
         const docRef = doc(db, 'users', userId);
         const sanitizedEntries = sanitizeForFirestore(entries);
         await setDoc(docRef, { entries: sanitizedEntries }, { merge: true });
       } catch (e: any) {
         console.error("Erro ao salvar entradas no Firestore:", e);
-        if (e.code === 'permission-denied') {
-          console.warn("Acesso negado ao Firestore. Verifique as regras de segurança.");
-        }
       }
     }
   },
 
-  async getTimeEntries(userId?: string): Promise<TimeEntry[]> {
+  async getTimeEntries(userId: string): Promise<TimeEntry[]> {
     if (userId && db) {
       try {
         const docRef = doc(db, 'users', userId);
@@ -113,7 +154,7 @@ export const storageService = {
         if (docSnap.exists()) {
           const data = docSnap.data();
           if (data.timeEntries) {
-            await localforage.setItem(KEYS.TIME_ENTRIES, data.timeEntries);
+            await this.saveTimeEntries(data.timeEntries, userId, false);
             return data.timeEntries;
           }
         }
@@ -123,28 +164,30 @@ export const storageService = {
         }
       }
     }
-    const data = await localforage.getItem<TimeEntry[]>(KEYS.TIME_ENTRIES);
-    return data || [];
+    return await this.getLocalTimeEntries(userId);
   },
 
-  async saveTimeEntries(timeEntries: TimeEntry[], userId?: string, isPro?: boolean) {
-    console.log(`Salvando ${timeEntries.length} pontos no IndexedDB...`);
-    await localforage.setItem(KEYS.TIME_ENTRIES, timeEntries);
-    if (userId && db && isPro) {
+  async saveTimeEntries(timeEntries: TimeEntry[], userId: string, syncToCloud: boolean = true) {
+    if (!userId) return;
+
+    const key = `${KEYS.TIME_ENTRIES}_${userId}`;
+    const encrypted = encrypt(timeEntries, userId);
+    if (encrypted) {
+      await localforage.setItem(key, encrypted);
+    }
+
+    if (syncToCloud && db) {
       try {
         const docRef = doc(db, 'users', userId);
         const sanitizedTimeEntries = sanitizeForFirestore(timeEntries);
         await setDoc(docRef, { timeEntries: sanitizedTimeEntries }, { merge: true });
       } catch (e: any) {
         console.error("Erro ao salvar pontos no Firestore:", e);
-        if (e.code === 'permission-denied') {
-          console.warn("Acesso negado ao Firestore. Verifique as regras de segurança.");
-        }
       }
     }
   },
 
-  async getConfig(userId?: string): Promise<AppConfig | null> {
+  async getConfig(userId: string): Promise<AppConfig | null> {
     if (userId && db) {
       try {
         const docRef = doc(db, 'users', userId);
@@ -152,7 +195,7 @@ export const storageService = {
         if (docSnap.exists()) {
           const data = docSnap.data();
           if (data.config) {
-            await localforage.setItem(KEYS.CONFIG, data.config);
+            await this.saveConfig(data.config, userId, false);
             return data.config;
           }
         }
@@ -162,30 +205,36 @@ export const storageService = {
         }
       }
     }
-    return await localforage.getItem<AppConfig>(KEYS.CONFIG);
+    return await this.getLocalConfig(userId);
   },
 
-  async saveConfig(config: AppConfig, userId?: string, isPro?: boolean) {
-    await localforage.setItem(KEYS.CONFIG, config);
-    // Sincroniza config sempre que houver userId, para persistir o status de assinatura
-    if (userId && db) {
+  async saveConfig(config: AppConfig, userId: string, syncToCloud: boolean = true) {
+    if (!userId) return;
+
+    const key = `${KEYS.CONFIG}_${userId}`;
+    const encrypted = encrypt(config, userId);
+    if (encrypted) {
+      await localforage.setItem(key, encrypted);
+    }
+
+    if (syncToCloud && db) {
       try {
         const docRef = doc(db, 'users', userId);
         const sanitizedConfig = sanitizeForFirestore(config);
         await setDoc(docRef, { config: sanitizedConfig }, { merge: true });
       } catch (e: any) {
         console.error("Erro ao salvar config no Firestore:", e);
-        if (e.code === 'permission-denied') {
-          console.warn("Acesso negado ao Firestore. Verifique as regras de segurança.");
-        }
       }
     }
   },
 
-  async resetData(userId?: string) {
-    await localforage.setItem(KEYS.ENTRIES, []);
-    await localforage.setItem(KEYS.TIME_ENTRIES, []);
-    if (userId && db) {
+  async resetData(userId: string) {
+    if (!userId) return;
+    
+    await localforage.removeItem(`${KEYS.ENTRIES}_${userId}`);
+    await localforage.removeItem(`${KEYS.TIME_ENTRIES}_${userId}`);
+    
+    if (db) {
       try {
         const docRef = doc(db, 'users', userId);
         await setDoc(docRef, { entries: [], timeEntries: [] }, { merge: true });
@@ -195,34 +244,28 @@ export const storageService = {
     }
   },
 
-  async deleteDataByPeriod(startDate: string, endDate: string, userId?: string) {
-    const entries = await this.getLocalEntries();
-    const timeEntries = await this.getLocalTimeEntries();
+  async deleteDataByPeriod(startDate: string, endDate: string, userId: string) {
+    if (!userId) return { entries: [], timeEntries: [] };
+
+    const entries = await this.getLocalEntries(userId);
+    const timeEntries = await this.getLocalTimeEntries(userId);
 
     const filteredEntries = entries.filter(e => e.date < startDate || e.date > endDate);
     const filteredTimeEntries = timeEntries.filter(e => e.date < startDate || e.date > endDate);
 
-    await localforage.setItem(KEYS.ENTRIES, filteredEntries);
-    await localforage.setItem(KEYS.TIME_ENTRIES, filteredTimeEntries);
+    await this.saveEntries(filteredEntries, userId, true);
+    await this.saveTimeEntries(filteredTimeEntries, userId, true);
 
-    if (userId && db) {
-      try {
-        const docRef = doc(db, 'users', userId);
-        await setDoc(docRef, { 
-          entries: sanitizeForFirestore(filteredEntries), 
-          timeEntries: sanitizeForFirestore(filteredTimeEntries) 
-        }, { merge: true });
-      } catch (e) {
-        console.error("Erro ao deletar dados por período no Firestore:", e);
-      }
-    }
     return { entries: filteredEntries, timeEntries: filteredTimeEntries };
   },
 
   async clearAll() {
+    // Limpa tudo do localforage (incluindo dados de outros usuários se estiverem lá)
     await localforage.clear();
-    localStorage.removeItem(KEYS.ENTRIES);
-    localStorage.removeItem(KEYS.TIME_ENTRIES);
-    localStorage.removeItem(KEYS.CONFIG);
+    // Limpa localStorage antigo
+    localStorage.removeItem('rota_financeira_data');
+    localStorage.removeItem('rota_financeira_time');
+    localStorage.removeItem('rota_financeira_config');
+    localStorage.removeItem('rota_financeira_migrated_v2');
   }
 };

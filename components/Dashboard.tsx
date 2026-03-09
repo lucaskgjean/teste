@@ -86,11 +86,11 @@ const Dashboard: React.FC<DashboardProps> = ({ entries, timeEntries, config, onE
   const isGoalReached = todaySum.totalGross >= config.dailyGoal;
 
   const pieData = [
-    { name: `Combustível`, value: generalSum.totalSpentFuel, color: '#f43f5e' },
-    { name: `Alimentação`, value: generalSum.totalSpentFood, color: '#f59e0b' },
-    { name: `Manutenção`, value: generalSum.totalSpentMaintenance, color: '#3b82f6' },
-    { name: `Outros`, value: generalSum.totalSpentOthers || 0, color: '#64748b' },
-    { name: `Lucro Líquido`, value: generalSum.totalNet, color: '#10b981' },
+    { name: `Combustível`, value: todaySum.totalSpentFuel, color: '#f43f5e' },
+    { name: `Alimentação`, value: todaySum.totalSpentFood, color: '#f59e0b' },
+    { name: `Manutenção`, value: todaySum.totalSpentMaintenance, color: '#3b82f6' },
+    { name: `Outros`, value: todaySum.totalSpentOthers || 0, color: '#64748b' },
+    { name: `Lucro Líquido`, value: todaySum.totalNet, color: '#10b981' },
   ];
 
   const containerVariants = {
@@ -129,10 +129,10 @@ const Dashboard: React.FC<DashboardProps> = ({ entries, timeEntries, config, onE
         <QuickLaunch onAdd={onAdd} existingEntries={entries} config={config} />
       </motion.div>
 
-      {/* 2. Bento Grid Section */}
+      {/* 2. Bento Grid Section - Reverted and Adjusted */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         
-        {/* Card de Progresso (Destaque - 2 colunas) */}
+        {/* Card de Progresso (Revertido para o design anterior) */}
         <motion.div 
           variants={itemVariants}
           whileHover={{ y: -4, transition: { duration: 0.2 } }}
@@ -180,11 +180,11 @@ const Dashboard: React.FC<DashboardProps> = ({ entries, timeEntries, config, onE
           </div>
         </motion.div>
 
-        {/* Card Hoje (1 coluna) */}
+        {/* Card Hoje (Menor - 1 coluna) */}
         <motion.div 
           variants={itemVariants}
           whileHover={{ y: -4, transition: { duration: 0.2 } }}
-          className="bg-indigo-600 dark:bg-indigo-700 p-6 rounded-[2.5rem] text-white shadow-lg shadow-indigo-200 dark:shadow-none flex flex-col justify-between group hover:bg-indigo-700 dark:hover:bg-indigo-800 transition-colors"
+          className="md:col-span-1 bg-indigo-600 dark:bg-indigo-700 p-6 rounded-[2.5rem] text-white shadow-lg shadow-indigo-200 dark:shadow-none flex flex-col justify-between group hover:bg-indigo-700 dark:hover:bg-indigo-800 transition-colors"
         >
           <div className="flex justify-between items-start">
             <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md">
@@ -203,11 +203,11 @@ const Dashboard: React.FC<DashboardProps> = ({ entries, timeEntries, config, onE
           </div>
         </motion.div>
 
-        {/* Card Semana (1 coluna) */}
+        {/* Card Semana (Menor - 1 coluna) */}
         <motion.div 
           variants={itemVariants}
           whileHover={{ y: -4, transition: { duration: 0.2 } }}
-          className="bg-slate-900 dark:bg-slate-800 p-6 rounded-[2.5rem] text-white shadow-lg shadow-slate-200 dark:shadow-none flex flex-col justify-between group hover:bg-slate-800 dark:hover:bg-slate-700 transition-colors"
+          className="md:col-span-1 bg-slate-900 dark:bg-slate-800 p-6 rounded-[2.5rem] text-white shadow-lg shadow-slate-200 dark:shadow-none flex flex-col justify-between group hover:bg-slate-800 dark:hover:bg-slate-700 transition-colors"
         >
           <div className="flex justify-between items-start">
             <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center">
@@ -226,37 +226,37 @@ const Dashboard: React.FC<DashboardProps> = ({ entries, timeEntries, config, onE
           </div>
         </motion.div>
 
-        {/* Card Mês (2 colunas em MD para ficar abaixo da semana/hoje ou ao lado) */}
+        {/* Card Mês (Maior - 4 colunas) */}
         <motion.div 
           variants={itemVariants}
           whileHover={{ y: -4, transition: { duration: 0.2 } }}
-          className="md:col-span-2 bg-emerald-600 dark:bg-emerald-700 p-6 rounded-[2.5rem] text-white shadow-lg shadow-emerald-100 dark:shadow-none flex flex-col justify-between relative overflow-hidden group"
+          className="md:col-span-4 bg-emerald-600 dark:bg-emerald-700 p-8 rounded-[2.5rem] text-white shadow-xl shadow-emerald-100 dark:shadow-none flex flex-col justify-between relative overflow-hidden group"
         >
           <div className="relative z-10 flex flex-col h-full justify-between">
-            <div className="flex justify-between items-start mb-4">
-              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md">
-                <Wallet size={20} />
+            <div className="flex justify-between items-start mb-6">
+              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md">
+                <Wallet size={24} />
               </div>
-              <span className="text-[10px] font-black bg-white/20 px-2 py-1 rounded-lg uppercase tracking-wider">
+              <span className="text-[10px] font-black bg-white/20 px-3 py-1.5 rounded-xl uppercase tracking-wider">
                 {monthSum.count} Entregas no Mês
               </span>
             </div>
             <div>
-              <span className="text-[10px] font-black uppercase tracking-widest opacity-70 block mb-1">Mês Atual</span>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-70 block mb-2">Faturamento Mensal</span>
               <div className="flex items-baseline justify-between gap-4">
-                <div className="text-3xl font-black font-mono-num tracking-tighter">{formatCurrency(monthSum.totalGross)}</div>
-                <div className="text-xs font-black opacity-90 bg-white/20 px-3 py-1 rounded-xl">Líquido: {formatCurrency(monthSum.totalNet)}</div>
+                <div className="text-4xl font-black font-mono-num tracking-tighter">{formatCurrency(monthSum.totalGross)}</div>
+                <div className="text-xs font-black opacity-90 bg-white/20 px-4 py-1.5 rounded-xl">Líquido: {formatCurrency(monthSum.totalNet)}</div>
               </div>
             </div>
           </div>
-          <div className="absolute -right-8 -top-8 opacity-10 group-hover:scale-110 transition-transform duration-700">
-            <Wallet size={180} />
+          <div className="absolute -right-10 -top-10 opacity-10 group-hover:scale-110 transition-transform duration-700">
+            <Wallet size={220} />
           </div>
         </motion.div>
 
       </div>
       
-      {/* 3. Métricas de Hoje */}
+      {/* 3. Métricas de Hoje - Improved Visuals */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {[
           { label: 'KM Hoje', value: `${todaySum.totalKm?.toFixed(0)} km`, icon: <Navigation size={16} />, color: 'text-indigo-500', bg: 'bg-indigo-50 dark:bg-indigo-500/10' },
@@ -269,20 +269,20 @@ const Dashboard: React.FC<DashboardProps> = ({ entries, timeEntries, config, onE
           <motion.div 
             key={i}
             variants={itemVariants}
-            className="bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-3"
+            className="bg-white dark:bg-slate-900 p-5 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col gap-3 group hover:border-indigo-100 dark:hover:border-indigo-500 transition-colors"
           >
-            <div className={`w-10 h-10 ${metric.bg} ${metric.color} rounded-xl flex items-center justify-center shrink-0`}>
+            <div className={`w-10 h-10 ${metric.bg} ${metric.color} rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform`}>
               {metric.icon}
             </div>
             <div>
-              <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tight block">{metric.label}</span>
-              <span className="text-xs font-black text-slate-800 dark:text-white font-mono-num">{metric.value}</span>
+              <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block mb-0.5">{metric.label}</span>
+              <span className="text-sm font-black text-slate-800 dark:text-white font-mono-num">{metric.value}</span>
             </div>
           </motion.div>
         ))}
       </div>
 
-      {/* 4. Divisão de Reservas */}
+      {/* 4. Divisão de Reservas - Today Only */}
       <div className="grid grid-cols-1 gap-6">
         
         {/* Card de Reservas */}
@@ -292,14 +292,17 @@ const Dashboard: React.FC<DashboardProps> = ({ entries, timeEntries, config, onE
           className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col md:flex-row items-center gap-8"
         >
           <div className="flex-1 w-full">
-            <div className="mb-6">
-              <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest mb-1">Distribuição do Faturamento</h3>
-              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-tight">Onde seu dinheiro foi parar (Acumulado)</p>
+            <div className="mb-8">
+              <div className="flex items-center gap-3 mb-1">
+                <div className="w-1.5 h-5 bg-indigo-500 rounded-full"></div>
+                <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest">Distribuição do Faturamento</h3>
+              </div>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-tight ml-4">Onde seu dinheiro foi parar (Hoje)</p>
             </div>
             
             <div className="grid grid-cols-2 gap-3">
                {pieData.map(item => (
-                 <div key={item.name} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100/50 dark:border-slate-800 group hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm transition-all">
+                 <div key={item.name} className="flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100/50 dark:border-slate-800 group hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm transition-all">
                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }}></div>
                    <div className="text-left">
                       <span className="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tight">{item.name}</span>
@@ -310,15 +313,15 @@ const Dashboard: React.FC<DashboardProps> = ({ entries, timeEntries, config, onE
             </div>
           </div>
           
-          <div className="w-full md:w-56 h-56 relative flex items-center justify-center">
+          <div className="w-full md:w-64 h-64 relative flex items-center justify-center">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie 
                   data={pieData} 
                   cx="50%" 
                   cy="50%" 
-                  innerRadius={65} 
-                  outerRadius={85} 
+                  innerRadius={75} 
+                  outerRadius={95} 
                   paddingAngle={8} 
                   dataKey="value"
                   stroke="none"
@@ -335,8 +338,8 @@ const Dashboard: React.FC<DashboardProps> = ({ entries, timeEntries, config, onE
               </PieChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase">Total</span>
-              <span className="text-lg font-black text-slate-800 dark:text-white font-mono-num">{formatCurrency(generalSum.totalGross).replace('R$', '')}</span>
+              <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Total Hoje</span>
+              <span className="text-xl font-black text-slate-800 dark:text-white font-mono-num">{formatCurrency(todaySum.totalGross).replace('R$', '')}</span>
             </div>
           </div>
         </motion.div>

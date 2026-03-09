@@ -84,6 +84,13 @@ const App: React.FC = () => {
     const unsubscribe = authService.subscribeToAuthChanges((u) => {
       setUser(u);
       setAuthChecked(true);
+      if (!u) {
+        // Limpa o estado ao deslogar para evitar vazamento em memória
+        setEntries([]);
+        setTimeEntries([]);
+        setConfig(DEFAULT_CONFIG);
+        setIsInitialLoading(true);
+      }
     });
     return () => unsubscribe();
   }, []);
@@ -221,34 +228,70 @@ const App: React.FC = () => {
 
   const handleSubscribe = async () => {
     if (!user) return;
+    
+    // Detecta se está rodando como PWA instalado (standalone)
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
+    
+    // Em PWA instalado, popups são frequentemente bloqueados ou problemáticos.
+    // Melhor usar redirecionamento direto.
+    if (isStandalone) {
+      setIsSaving(true); // Feedback visual
+      try {
+        const response = await fetch('/api/create-checkout-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.uid }),
+        });
+        const data = await response.json();
+        if (data.url) {
+          window.location.href = data.url;
+        } else {
+          showToast("Erro ao iniciar checkout.", "error");
+        }
+      } catch (error) {
+        console.error("Erro ao assinar:", error);
+        showToast("Erro de conexão.", "error");
+      } finally {
+        setIsSaving(false);
+      }
+      return;
+    }
+
+    // Para Navegador: Tenta abrir popup (estratégia de abrir em branco primeiro para evitar bloqueio)
+    const width = 500;
+    const height = 700;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+    
+    const authWindow = window.open(
+      'about:blank', 
+      'stripe_checkout', 
+      `width=${width},height=${height},left=${left},top=${top}`
+    );
+
+    if (!authWindow) {
+      showToast("Por favor, permita popups para assinar.", "error");
+      return;
+    }
+
     try {
       const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: user.uid }),
       });
       
       const data = await response.json();
       if (data.url) {
-        // Abrir em popup para evitar problemas com iframe
-        const width = 500;
-        const height = 700;
-        const left = window.screenX + (window.outerWidth - width) / 2;
-        const top = window.screenY + (window.outerHeight - height) / 2;
-        
-        window.open(
-          data.url, 
-          'stripe_checkout', 
-          `width=${width},height=${height},left=${left},top=${top}`
-        );
+        authWindow.location.href = data.url;
       } else {
+        authWindow.close();
         showToast("Erro ao iniciar checkout.", "error");
       }
     } catch (error) {
+      authWindow.close();
       console.error("Erro ao assinar:", error);
-      showToast("Erro de conexão com o servidor.", "error");
+      showToast("Erro de conexão.", "error");
     }
   };
 
@@ -274,12 +317,12 @@ const App: React.FC = () => {
       const remaining = alert.kmInterval - (lastKm - alert.lastKm);
       // Alerta quando faltar menos de 500km
       if (remaining <= 500 && remaining > 0) {
-        const lastAlertNotif = localStorage.getItem(`last_maint_notif_${alert.id}`);
+        const lastAlertNotif = localStorage.getItem(`last_maint_notif_${user.uid}_${alert.id}`);
         if (lastAlertNotif !== today) {
           notificationService.sendNotification("Manutenção Próxima! ⚠️", {
             body: `O item "${alert.description}" precisa de atenção em ${remaining}km.`
           });
-          localStorage.setItem(`last_maint_notif_${alert.id}`, today);
+          localStorage.setItem(`last_maint_notif_${user.uid}_${alert.id}`, today);
         }
       }
     });
@@ -287,7 +330,7 @@ const App: React.FC = () => {
 
   // Auto-close shifts from previous days at midnight
   useEffect(() => {
-    if (isInitialLoading || timeEntries.length === 0) return;
+    if (isInitialLoading || timeEntries.length === 0 || !user) return;
     
     const today = getLocalDateStr();
     let hasChanges = false;
@@ -303,9 +346,9 @@ const App: React.FC = () => {
     
     if (hasChanges) {
       setTimeEntries(updatedTimeEntries);
-      storageService.saveTimeEntries(updatedTimeEntries);
+      storageService.saveTimeEntries(updatedTimeEntries, user.uid);
     }
-  }, [isInitialLoading, timeEntries, timeEntries.length]);
+  }, [isInitialLoading, timeEntries, user]);
 
   // 3. Garantir createdAt para usuários existentes/novos
   useEffect(() => {
@@ -335,14 +378,14 @@ const App: React.FC = () => {
 
     const initApp = async () => {
       try {
-        // 0. Migra se necessário
-        await storageService.migrateFromLocalStorage();
+        // 0. Migra se necessário (agora isolado por usuário)
+        await storageService.migrateFromLocalStorage(user.uid);
 
-        // 1. Carregamento Ultra Rápido (Local)
+        // 1. Carregamento Ultra Rápido (Local - Criptografado e Isolado)
         const [localEntries, localTimeEntries, localConfig] = await Promise.all([
-          storageService.getLocalEntries(),
-          storageService.getLocalTimeEntries(),
-          storageService.getLocalConfig()
+          storageService.getLocalEntries(user.uid),
+          storageService.getLocalTimeEntries(user.uid),
+          storageService.getLocalConfig(user.uid)
         ]);
 
         if (localEntries.length > 0) setEntries(localEntries);
@@ -486,12 +529,12 @@ const App: React.FC = () => {
 
         // Notificação de Meta
         if (config.notificationsEnabled) {
-          const lastGoalNotif = localStorage.getItem('last_goal_notif');
+          const lastGoalNotif = localStorage.getItem(`last_goal_notif_${user.uid}`);
           if (lastGoalNotif !== todayStr) {
             notificationService.sendNotification("Meta Batida! 🎉", {
               body: `Parabéns! Você atingiu sua meta de ${formatCurrency(config.dailyGoal)} hoje.`
             });
-            localStorage.setItem('last_goal_notif', todayStr);
+            localStorage.setItem(`last_goal_notif_${user.uid}`, todayStr);
           }
         }
       } else {
@@ -515,7 +558,19 @@ const App: React.FC = () => {
   };
   
   const updateEntry = (updated: DailyEntry) => {
-    setEntries(prev => prev.map(e => e.id === updated.id ? updated : e));
+    setEntries(prev => {
+      const newEntries = prev.map(e => e.id === updated.id ? updated : e);
+      
+      if (updated.storeName === 'Fechamento de KM') {
+        const kmEntries = newEntries
+          .filter(e => e.storeName === 'Fechamento de KM')
+          .sort((a, b) => b.date.localeCompare(a.date));
+        
+        const newLastKm = kmEntries.length > 0 ? kmEntries[0].kmAtMaintenance : 0;
+        setConfig(prevConfig => ({ ...prevConfig, lastTotalKm: newLastKm }));
+      }
+      return newEntries;
+    });
     setEditingEntry(null);
     showToast("Registro atualizado com sucesso!");
   };
@@ -529,7 +584,21 @@ const App: React.FC = () => {
       message: 'Deseja excluir este registro permanentemente? Esta ação não pode ser desfeita.',
       type: 'danger',
       onConfirm: () => {
-        setEntries(prev => prev.filter(e => e.id !== id));
+        setEntries(prev => {
+          const deletedEntry = prev.find(e => e.id === id);
+          const filtered = prev.filter(e => e.id !== id);
+          
+          if (deletedEntry?.storeName === 'Fechamento de KM') {
+            const kmEntries = filtered
+              .filter(e => e.storeName === 'Fechamento de KM')
+              .sort((a, b) => b.date.localeCompare(a.date));
+            
+            const newLastKm = kmEntries.length > 0 ? kmEntries[0].kmAtMaintenance : 0;
+            setConfig(c => ({ ...c, lastTotalKm: newLastKm }));
+          }
+          
+          return filtered;
+        });
         showToast("Registro removido.", "error");
         setDialog(prev => ({ ...prev, isOpen: false }));
       }

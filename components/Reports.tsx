@@ -7,6 +7,8 @@ import CustomDialog from './CustomDialog';
 import { 
   BarChart, 
   Bar, 
+  PieChart,
+  Pie,
   XAxis, 
   YAxis, 
   CartesianGrid, 
@@ -227,6 +229,23 @@ const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config, onAddEn
 
     const fuelMetrics = calculateFuelMetrics(filteredEntries);
     
+    // Mapa de Calor: Ganhos por Dia da Semana e Hora
+    const heatMapData: number[][] = Array(7).fill(0).map(() => Array(24).fill(0));
+    filteredEntries.forEach(e => {
+      if (e.grossAmount > 0) {
+        const dateObj = new Date(e.date + 'T12:00:00');
+        const dayOfWeek = dateObj.getDay(); // 0 (Dom) a 6 (Sab)
+        // Ajustar para iniciar na Segunda (Seg=0, Ter=1, ..., Dom=6)
+        const adjustedDay = (dayOfWeek + 6) % 7;
+        const hour = parseInt(e.time.split(':')[0]);
+        if (!isNaN(hour) && hour >= 0 && hour < 24) {
+          heatMapData[adjustedDay][hour] += e.grossAmount;
+        }
+      }
+    });
+
+    const maxHeatValue = Math.max(...heatMapData.flat(), 1);
+
     // Odômetro Total (último valor lançado em km total do veículo)
     const allKmEntries = entries.filter(e => e.kmAtMaintenance !== undefined && e.kmAtMaintenance > 0);
     const totalOdometer = allKmEntries.length > 0 
@@ -276,7 +295,9 @@ const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config, onAddEn
       expenseTotalsByMethod,
       expenseTotalsByCategory,
       fuelMetrics,
-      totalOdometer
+      totalOdometer,
+      heatMapData,
+      maxHeatValue
     };
   }, [entries, timeEntries, startDate, endDate, selectedStore, currentTime]);
 
@@ -866,6 +887,150 @@ const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config, onAddEn
             ))}
           </div>
         )}
+      </motion.div>
+
+      {/* Mapa de Calor de Ganhos */}
+      <motion.div variants={itemVariants} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800">
+        <div className="mb-8">
+          <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-2">
+            <div className="w-1.5 h-4 bg-amber-500 rounded-full"></div>
+            Mapa de Calor: Melhores Horários
+          </h4>
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-tight mt-1">Quanto mais verde, maior o faturamento no período</p>
+        </div>
+
+        <div className="overflow-x-auto pb-4 scrollbar-hide">
+          <div className="min-w-[800px]">
+            <div className="flex mb-2">
+              <div className="w-16 shrink-0 sticky left-0 bg-white dark:bg-slate-900 z-20 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.05)]"></div>
+              {Array.from({ length: 24 }).map((_, i) => {
+                const hour = (i + 8) % 24;
+                return (
+                  <div key={hour} className="flex-1 text-center text-[8px] font-black text-slate-400 uppercase">
+                    {hour}h
+                  </div>
+                );
+              })}
+            </div>
+
+            {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map((day, dIdx) => (
+              <div key={day} className="flex items-stretch mb-1">
+                <div className="w-16 shrink-0 text-[10px] font-black text-slate-500 uppercase sticky left-0 bg-white dark:bg-slate-900 z-20 pr-4 flex items-center shadow-[4px_0_8px_-4px_rgba(0,0,0,0.05)]">
+                  {day}
+                </div>
+                <div className="flex-1 flex gap-1 py-1">
+                  {Array.from({ length: 24 }).map((_, i) => {
+                    const hIdx = (i + 8) % 24;
+                    const value = reportData.heatMapData[dIdx][hIdx];
+                    const intensity = value > 0 ? Math.max(0.1, value / reportData.maxHeatValue) : 0;
+                    return (
+                      <div 
+                        key={hIdx} 
+                        className="flex-1 h-8 rounded-md transition-all group relative"
+                        style={{ 
+                          backgroundColor: value > 0 ? `rgba(16, 185, 129, ${intensity})` : 'rgba(241, 245, 249, 0.5)',
+                          border: value > 0 ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid transparent'
+                        }}
+                      >
+                        {value > 0 && (
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-slate-900 text-white text-[10px] font-black rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 whitespace-nowrap shadow-xl">
+                            {day}, {hIdx}h: {formatCurrency(value)}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        <div className="mt-6 flex items-center justify-end gap-4">
+          <span className="text-[9px] font-black text-slate-400 uppercase">Menos</span>
+          <div className="flex gap-1">
+            {[0.1, 0.3, 0.6, 0.9].map(i => (
+              <div key={i} className="w-4 h-4 rounded-sm" style={{ backgroundColor: `rgba(16, 185, 129, ${i})` }}></div>
+            ))}
+          </div>
+          <span className="text-[9px] font-black text-slate-400 uppercase">Mais</span>
+        </div>
+      </motion.div>
+
+      {/* Distribuição por Faturamento do Período */}
+      <motion.div 
+        variants={itemVariants}
+        className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col md:flex-row items-center gap-8"
+      >
+        <div className="flex-1 w-full">
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-1">
+              <div className="w-1.5 h-5 bg-indigo-500 rounded-full"></div>
+              <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest">Distribuição do Período</h3>
+            </div>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-tight ml-4">Onde seu dinheiro foi parar no período selecionado</p>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-3">
+             {[
+               { name: `Combustível`, value: reportData.totalFuelSpent, color: '#f43f5e' },
+               { name: `Alimentação`, value: reportData.totalFoodSpent, color: '#f59e0b' },
+               { name: `Manutenção`, value: reportData.totalMaintenanceSpent, color: '#3b82f6' },
+               { name: `Outros`, value: reportData.totalOthersSpent, color: '#64748b' },
+               { name: `Lucro Líquido`, value: reportData.summary.totalNet, color: '#10b981' },
+             ].map(item => (
+               <div key={item.name} className="flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100/50 dark:border-slate-800 group hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm transition-all">
+                 <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }}></div>
+                 <div className="text-left">
+                    <span className="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tight">{item.name}</span>
+                    <span className="block text-sm font-black text-slate-800 dark:text-white font-mono-num">{formatCurrency(item.value)}</span>
+                 </div>
+               </div>
+             ))}
+          </div>
+        </div>
+        
+        <div className="w-full md:w-64 h-64 relative flex items-center justify-center">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie 
+                data={[
+                  { name: `Combustível`, value: reportData.totalFuelSpent, color: '#f43f5e' },
+                  { name: `Alimentação`, value: reportData.totalFoodSpent, color: '#f59e0b' },
+                  { name: `Manutenção`, value: reportData.totalMaintenanceSpent, color: '#3b82f6' },
+                  { name: `Outros`, value: reportData.totalOthersSpent, color: '#64748b' },
+                  { name: `Lucro Líquido`, value: reportData.summary.totalNet, color: '#10b981' },
+                ]} 
+                cx="50%" 
+                cy="50%" 
+                innerRadius={75} 
+                outerRadius={95} 
+                paddingAngle={8} 
+                dataKey="value"
+                stroke="none"
+                animationBegin={200}
+                animationDuration={1000}
+              >
+                {[
+                  { color: '#f43f5e' },
+                  { color: '#f59e0b' },
+                  { color: '#3b82f6' },
+                  { color: '#64748b' },
+                  { color: '#10b981' },
+                ].map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+              </Pie>
+              <Tooltip 
+                 contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', padding: '16px', backgroundColor: '#1e293b', color: '#fff' }}
+                 itemStyle={{ fontWeight: '900', fontSize: '12px', color: '#fff' }}
+                 formatter={(value: number) => formatCurrency(value)} 
+              />
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Total Período</span>
+            <span className="text-xl font-black text-slate-800 dark:text-white font-mono-num">{formatCurrency(reportData.summary.totalGross).replace('R$', '')}</span>
+          </div>
+        </div>
       </motion.div>
     </motion.div>
   );
