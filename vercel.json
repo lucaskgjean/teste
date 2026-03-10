@@ -18,11 +18,6 @@
     },
     {
       "source": "/(.*)",
-      "destination": "/dist/$1",
-      "check": true
-    },
-    {
-      "source": "/(.*)",
       "destination": "/server.ts"
     }
   ]
