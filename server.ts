@@ -1,5 +1,4 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import Stripe from "stripe";
@@ -275,11 +274,16 @@ async function startServer() {
 
   // Vite middleware para desenvolvimento
   if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
+    try {
+      const { createServer: createViteServer } = await import("vite");
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+    } catch (e) {
+      console.warn("⚠️ Falha ao carregar Vite middleware em desenvolvimento:", e);
+    }
   } else {
     // Servir arquivos estáticos em produção
     app.use(express.static(path.join(__dirname, "dist")));
@@ -288,9 +292,16 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
-  });
+  // Apenas inicia o servidor se não estiver em ambiente serverless (Vercel)
+  if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
+    });
+  }
+
+  return app;
 }
 
-startServer();
+// Exporta o app para compatibilidade com Vercel
+export const appPromise = startServer();
+export default appPromise;
