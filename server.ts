@@ -119,7 +119,60 @@ async function startServer() {
     res.json({ status: "ok", message: "RotaFinanceira Backend is running" });
   });
 
-  // Rota do Stripe Checkout
+  // Rota de redirecionamento direto (GET) para evitar problemas de fetch/CORS/Popups
+  app.get("/api/checkout-redirect", async (req, res) => {
+    const stripe = getStripe();
+    if (!stripe) {
+      return res.status(500).send("Stripe não configurado.");
+    }
+
+    const { userId, plan } = req.query;
+    if (!userId) {
+      return res.status(400).send("ID do usuário é obrigatório.");
+    }
+
+    const appUrl = process.env.APP_URL || `https://${req.get('host')}`;
+    const isYearly = plan === 'yearly';
+    const amount = isYearly ? 11990 : 1990;
+    const interval = isYearly ? 'year' : 'month';
+
+    try {
+      const session = await stripe.checkout.sessions.create({
+        line_items: [
+          {
+            price_data: {
+              currency: "brl",
+              product_data: {
+                name: `RotaFinanceira PRO - ${isYearly ? 'Anual' : 'Mensal'}`,
+                description: "Acesso total, backup em nuvem e IA ilimitada.",
+              },
+              unit_amount: amount,
+              recurring: {
+                interval: interval as Stripe.Checkout.SessionCreateParams.LineItem.PriceData.Recurring.Interval,
+              },
+            },
+            quantity: 1,
+          },
+        ],
+        mode: "subscription",
+        success_url: `${appUrl}/api/stripe-callback?session_id={CHECKOUT_SESSION_ID}&status=success`,
+        cancel_url: `${appUrl}/api/stripe-callback?status=cancel`,
+        client_reference_id: userId as string,
+        metadata: {
+          userId: userId as string,
+          planType: (plan as string) || 'monthly',
+        },
+      });
+
+      // Redireciona o navegador diretamente para o Stripe
+      res.redirect(303, session.url!);
+    } catch (error: any) {
+      console.error("❌ Erro no redirecionamento Stripe:", error);
+      res.status(500).send(`Erro ao iniciar checkout: ${error.message}`);
+    }
+  });
+
+  // Rota do Stripe Checkout (mantida para compatibilidade se necessário)
   app.post("/api/create-checkout-session", async (req, res) => {
     const stripe = getStripe();
     if (!stripe) {

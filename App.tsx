@@ -272,31 +272,14 @@ const App: React.FC = () => {
       return;
     }
 
-    // Redirecionamento direto para o Stripe (mais compatível com navegadores mobile)
+    // Redirecionamento direto via GET (método mais robusto para evitar erros de conexão em mobile/iframes)
     setIsSaving(true);
     
-    try {
-      const response = await fetch('/api/create-checkout-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.uid, planType }),
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok && data.url) {
-        // Redireciona a página inteira para o Stripe
-        // Isso garante que o navegador padrão do usuário assuma o controle
-        window.location.href = data.url;
-      } else {
-        setIsSaving(false);
-        showToast(data.error || "Erro ao iniciar checkout.", "error");
-      }
-    } catch (error) {
-      setIsSaving(false);
-      console.error("Erro ao assinar:", error);
-      showToast("Erro de conexão. Verifique sua internet.", "error");
-    }
+    // Monta a URL de redirecionamento
+    const redirectUrl = `/api/checkout-redirect?userId=${user.uid}&plan=${planType}`;
+    
+    // Redireciona a página inteira. O servidor cuidará de criar a sessão e enviar para o Stripe.
+    window.location.href = redirectUrl;
   };
 
   // 1. Notificações Personalizadas (Timer de 1 minuto)
