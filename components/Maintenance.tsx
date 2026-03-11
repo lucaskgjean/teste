@@ -30,13 +30,26 @@ const Maintenance: React.FC<MaintenanceProps> = ({ entries, config, onEdit, onAd
   const todayEntries = entries.filter(e => e.date === todayStr);
   const monthEntries = entries.filter(e => e.date.startsWith(currentMonthStr));
   
+  const getStartOfWeek = (d: Date) => {
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    return new Date(d.setDate(diff));
+  };
+  const startOfWeek = getStartOfWeek(new Date());
+  startOfWeek.setHours(0, 0, 0, 0);
+
+  const weekEntries = entries.filter(e => {
+    const entryDate = new Date(e.date + 'T12:00:00');
+    return entryDate >= startOfWeek;
+  });
+
   const todaySum = getWeeklySummary(todayEntries);
+  const weekSum = getWeeklySummary(weekEntries);
   const monthSum = getWeeklySummary(monthEntries);
-  const generalSum = getWeeklySummary(entries);
 
   const todaySpent = todaySum.totalSpentFuel + todaySum.totalSpentFood + todaySum.totalSpentMaintenance + todaySum.totalSpentOthers;
+  const weekSpent = weekSum.totalSpentFuel + weekSum.totalSpentFood + weekSum.totalSpentMaintenance + weekSum.totalSpentOthers;
   const monthSpent = monthSum.totalSpentFuel + monthSum.totalSpentFood + monthSum.totalSpentMaintenance + monthSum.totalSpentOthers;
-  const totalReservedAll = generalSum.totalFuel + generalSum.totalFood + generalSum.totalMaintenance + generalSum.totalOthers;
 
   const maintenanceEntries = entries.filter(e => e.maintenance > 0 && e.grossAmount === 0);
   
@@ -97,26 +110,36 @@ const Maintenance: React.FC<MaintenanceProps> = ({ entries, config, onEdit, onAd
         <QuickKM onAdd={onAdd} config={config} entries={entries} />
       </motion.div>
 
-      {/* Header de Saldo */}
+      {/* Card de Gastos Unificado */}
       <motion.div 
         variants={itemVariants}
-        className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center gap-8 relative overflow-hidden group"
+        whileHover={{ y: -4, transition: { duration: 0.2 } }}
+        className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 relative overflow-hidden group"
       >
-        <div className="relative z-10 flex-1 w-full">
-          <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 dark:text-slate-500 mb-2">Gasto Real (Hoje)</h2>
-          <div className="text-5xl font-black text-rose-600 dark:text-rose-400 tracking-tighter font-mono-num">{formatCurrency(todaySpent)}</div>
-          <div className="mt-3">
-            <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block mb-1">Total Mensal</span>
-            <p className="text-lg font-black text-slate-800 dark:text-white font-mono-num">{formatCurrency(monthSpent)}</p>
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-10 h-10 bg-rose-50 dark:bg-rose-500/10 rounded-xl flex items-center justify-center text-rose-600 dark:text-rose-400">
+              <Wallet size={20} strokeWidth={2.5} />
+            </div>
+            <h3 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Resumo de Gastos Totais</h3>
           </div>
-        </div>
-        
-        <div className="text-center md:text-right relative z-10">
-          <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase block mb-1 tracking-widest">Reservas Projetadas</span>
-          <div className="text-4xl font-black text-emerald-600 dark:text-emerald-400 tracking-tighter font-mono-num flex items-center gap-2 justify-center md:justify-end">
-            {formatCurrency(totalReservedAll)}
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 block mb-1">Hoje</span>
+              <div className="text-4xl font-black text-rose-600 dark:text-rose-400 tracking-tighter font-mono-num">{formatCurrency(todaySpent)}</div>
+            </div>
+            
+            <div className="flex flex-col md:border-l border-slate-100 dark:border-slate-800 md:pl-8">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 block mb-1">Esta Semana</span>
+              <div className="text-2xl font-black text-slate-800 dark:text-white tracking-tighter font-mono-num">{formatCurrency(weekSpent)}</div>
+            </div>
+
+            <div className="flex flex-col md:border-l border-slate-100 dark:border-slate-800 md:pl-8">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 block mb-1">Este Mês</span>
+              <div className="text-2xl font-black text-slate-800 dark:text-white tracking-tighter font-mono-num">{formatCurrency(monthSpent)}</div>
+            </div>
           </div>
-          <p className="text-[9px] text-slate-400 dark:text-slate-500 mt-1 font-bold uppercase tracking-tight">Saldo Acumulado</p>
         </div>
         
         <div className="absolute -right-8 -bottom-8 opacity-[0.03] dark:opacity-[0.05] group-hover:scale-110 transition-transform duration-700">

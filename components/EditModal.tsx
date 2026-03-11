@@ -2,6 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { DailyEntry, AppConfig } from '../types';
 import { calculateDailyEntry, calculateManualExpense, calculateKmClosing } from '../utils/calculations';
+import CustomDatePicker from './CustomDatePicker';
+import CustomTimePicker from './CustomTimePicker';
+import { AnimatePresence } from 'motion/react';
+import { Calendar, Clock } from 'lucide-react';
 
 interface EditModalProps {
   entry: DailyEntry;
@@ -32,6 +36,8 @@ const EditModal: React.FC<EditModalProps> = ({ entry, config, onSave, onClose })
   const [category, setCategory] = useState<'fuel' | 'food' | 'maintenance' | 'others'>(
     entry.fuel > 0 ? 'fuel' : entry.food > 0 ? 'food' : entry.maintenance > 0 ? 'maintenance' : 'others'
   );
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -272,21 +278,44 @@ const EditModal: React.FC<EditModalProps> = ({ entry, config, onSave, onClose })
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase mb-2 tracking-widest">Data</label>
-              <input 
-                type="date" required
-                value={date} onChange={(e) => setDate(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:border-indigo-500 outline-none"
-              />
+              <button 
+                type="button"
+                onClick={() => setShowDatePicker(true)}
+                className="w-full flex items-center gap-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:border-indigo-500 outline-none transition-all"
+              >
+                <Calendar size={16} className="text-slate-400" />
+                <span>{new Date(date + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
+              </button>
             </div>
             <div>
               <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase mb-2 tracking-widest">Hora</label>
-              <input 
-                type="time" required
-                value={time} onChange={(e) => setTime(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:border-indigo-500 outline-none"
-              />
+              <button 
+                type="button"
+                onClick={() => setShowTimePicker(true)}
+                className="w-full flex items-center gap-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:border-indigo-500 outline-none transition-all"
+              >
+                <Clock size={16} className="text-slate-400" />
+                <span>{time}</span>
+              </button>
             </div>
           </div>
+
+          <AnimatePresence>
+            {showDatePicker && (
+              <CustomDatePicker 
+                value={date} 
+                onChange={setDate} 
+                onClose={() => setShowDatePicker(false)} 
+              />
+            )}
+            {showTimePicker && (
+              <CustomTimePicker 
+                value={time} 
+                onChange={setTime} 
+                onClose={() => setShowTimePicker(false)} 
+              />
+            )}
+          </AnimatePresence>
 
           <div className="pt-4 flex gap-3">
             <button 

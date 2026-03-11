@@ -3,6 +3,8 @@ import React, { useState, useMemo } from 'react';
 import { DailyEntry, AppConfig } from '../types';
 import { formatCurrency, getWeeklySummary, getDailyStats, getLocalDateStr } from '../utils/calculations';
 import { motion, AnimatePresence } from 'motion/react';
+import CustomDatePicker from './CustomDatePicker';
+import CustomSelect from './CustomSelect';
 import { 
   Search, 
   Filter, 
@@ -21,7 +23,10 @@ import {
   Check,
   Info,
   ChevronRight,
-  History as HistoryIcon
+  History as HistoryIcon,
+  Layers,
+  Banknote,
+  Activity
 } from 'lucide-react';
 import QuickLaunch from './QuickLaunch';
 
@@ -41,11 +46,20 @@ const History: React.FC<HistoryProps> = ({ entries, config, onDelete, onEdit, on
   const [filterPayment, setFilterPayment] = useState<string>('');
   const [filterStatus, setFilterStatus] = useState<string>('');
   const [filterStore, setFilterStore] = useState<string>('');
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [showCategorySelect, setShowCategorySelect] = useState(false);
+  const [showPaymentSelect, setShowPaymentSelect] = useState(false);
+  const [showStatusSelect, setShowStatusSelect] = useState(false);
+  const [showFullHistory, setShowFullHistory] = useState(false);
 
   const todayEntries = entries.filter(e => e.date === todayStr);
 
   const filteredEntries = useMemo(() => {
     return entries.map((entry, index) => ({ entry, index })).filter(({ entry }) => {
+      // Excluir gastos manuais (grossAmount === 0 e não é fechamento de KM)
+      if (entry.grossAmount === 0 && entry.storeName !== 'Fechamento de KM') return false;
+
       const matchRange = (filterStartDate || filterEndDate) ? (
         (!filterStartDate || entry.date >= filterStartDate) &&
         (!filterEndDate || entry.date <= filterEndDate)
@@ -142,60 +156,75 @@ const History: React.FC<HistoryProps> = ({ entries, config, onDelete, onEdit, on
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
           <div className="space-y-2">
             <label className="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Início</label>
-            <input 
-              type="date" 
-              value={filterStartDate}
-              onChange={(e) => setFilterStartDate(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 transition outline-none text-sm font-bold text-slate-700 dark:text-slate-200"
-            />
+            <button 
+              type="button"
+              onClick={() => setShowStartDatePicker(true)}
+              className="w-full flex items-center gap-3 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 transition-all hover:border-indigo-200 dark:hover:border-indigo-500/30"
+            >
+              <Calendar className="text-slate-300 dark:text-slate-600" size={16} />
+              <span>{filterStartDate ? new Date(filterStartDate + 'T12:00:00').toLocaleDateString('pt-BR') : 'Início'}</span>
+            </button>
           </div>
           <div className="space-y-2">
             <label className="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Fim</label>
-            <input 
-              type="date" 
-              value={filterEndDate}
-              onChange={(e) => setFilterEndDate(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 transition outline-none text-sm font-bold text-slate-700 dark:text-slate-200"
+            <button 
+              type="button"
+              onClick={() => setShowEndDatePicker(true)}
+              className="w-full flex items-center gap-3 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 transition-all hover:border-indigo-200 dark:hover:border-indigo-500/30"
+            >
+              <Calendar className="text-slate-300 dark:text-slate-600" size={16} />
+              <span>{filterEndDate ? new Date(filterEndDate + 'T12:00:00').toLocaleDateString('pt-BR') : 'Fim'}</span>
+            </button>
+          </div>
+          <div className="space-y-2">
+            <CustomSelect
+              label="Categoria"
+              value={filterCategory}
+              options={[
+                { id: '', label: 'Todas', icon: <Layers size={14} /> },
+                { id: 'income', label: 'Lucros', icon: <TrendingUp size={14} className="text-emerald-500" /> },
+                { id: 'fuel', label: 'Combustível', icon: <TrendingDown size={14} className="text-rose-500" /> },
+                { id: 'food', label: 'Alimentação', icon: <TrendingDown size={14} className="text-orange-500" /> },
+                { id: 'maintenance', label: 'Manutenção', icon: <TrendingDown size={14} className="text-blue-500" /> },
+                { id: 'others', label: 'Outros', icon: <TrendingDown size={14} className="text-slate-500" /> }
+              ]}
+              onChange={setFilterCategory}
+              isOpen={showCategorySelect}
+              onOpen={() => setShowCategorySelect(true)}
+              onClose={() => setShowCategorySelect(false)}
             />
           </div>
           <div className="space-y-2">
-            <label className="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Categoria</label>
-            <select 
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 transition outline-none text-sm font-bold text-slate-700 dark:text-slate-200 appearance-none"
-            >
-              <option value="">Todas</option>
-              <option value="income">Lucros</option>
-              <option value="fuel">Combustível</option>
-              <option value="food">Alimentação</option>
-              <option value="maintenance">Manutenção</option>
-            </select>
-          </div>
-          <div className="space-y-2">
-            <label className="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Pagamento</label>
-            <select 
+            <CustomSelect
+              label="Pagamento"
               value={filterPayment}
-              onChange={(e) => setFilterPayment(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 transition outline-none text-sm font-bold text-slate-700 dark:text-slate-200 appearance-none"
-            >
-              <option value="">Todos</option>
-              <option value="pix">PIX</option>
-              <option value="money">Dinheiro</option>
-              <option value="caderno">Caderno</option>
-            </select>
+              options={[
+                { id: '', label: 'Todos', icon: <Banknote size={14} /> },
+                { id: 'pix', label: 'PIX', icon: <CreditCard size={14} className="text-indigo-500" /> },
+                { id: 'money', label: 'Dinheiro', icon: <Wallet size={14} className="text-emerald-500" /> },
+                { id: 'caderno', label: 'Caderno', icon: <Tag size={14} className="text-amber-500" /> },
+                { id: 'debito', label: 'Débito', icon: <CreditCard size={14} className="text-blue-500" /> }
+              ]}
+              onChange={setFilterPayment}
+              isOpen={showPaymentSelect}
+              onOpen={() => setShowPaymentSelect(true)}
+              onClose={() => setShowPaymentSelect(false)}
+            />
           </div>
           <div className="space-y-2">
-            <label className="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 ml-1">Status</label>
-            <select 
+            <CustomSelect
+              label="Status"
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 transition outline-none text-sm font-bold text-slate-700 dark:text-slate-200 appearance-none"
-            >
-              <option value="">Todos</option>
-              <option value="paid">Pago</option>
-              <option value="pending">Pendente</option>
-            </select>
+              options={[
+                { id: '', label: 'Todos', icon: <Activity size={14} /> },
+                { id: 'paid', label: 'Pago', icon: <CheckCircle2 size={14} className="text-emerald-500" /> },
+                { id: 'pending', label: 'Pendente', icon: <AlertCircle size={14} className="text-rose-500" /> }
+              ]}
+              onChange={setFilterStatus}
+              isOpen={showStatusSelect}
+              onOpen={() => setShowStatusSelect(true)}
+              onClose={() => setShowStatusSelect(false)}
+            />
           </div>
           <div className="space-y-2">
             <label className="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Loja</label>
@@ -391,6 +420,23 @@ const History: React.FC<HistoryProps> = ({ entries, config, onDelete, onEdit, on
         </div>
         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/20 blur-[100px] -mr-20 -mt-20 rounded-full"></div>
       </motion.div>
+
+      <AnimatePresence>
+        {showStartDatePicker && (
+          <CustomDatePicker 
+            value={filterStartDate} 
+            onChange={setFilterStartDate} 
+            onClose={() => setShowStartDatePicker(false)} 
+          />
+        )}
+        {showEndDatePicker && (
+          <CustomDatePicker 
+            value={filterEndDate} 
+            onChange={setFilterEndDate} 
+            onClose={() => setShowEndDatePicker(false)} 
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };

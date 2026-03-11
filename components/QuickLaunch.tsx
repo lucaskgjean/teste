@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import { calculateDailyEntry, getLocalDateStr } from '../utils/calculations';
 import { DailyEntry, AppConfig } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
+import CustomDatePicker from './CustomDatePicker';
+import CustomTimePicker from './CustomTimePicker';
 import { 
   Plus, 
   Store, 
@@ -33,6 +35,8 @@ const QuickLaunch: React.FC<QuickLaunchProps> = ({ onAdd, existingEntries, confi
   const [date, setDate] = useState<string>(getLocalDateStr());
   const [paymentMethod, setPaymentMethod] = useState<'money' | 'pix' | 'caderno'>('pix');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   const allStores = Array.from(new Set(existingEntries.filter(e => e.grossAmount > 0).map(e => e.storeName).reverse())) as string[];
   
@@ -193,20 +197,45 @@ const QuickLaunch: React.FC<QuickLaunchProps> = ({ onAdd, existingEntries, confi
               <div className="grid grid-cols-2 gap-4 pt-6 border-t border-slate-50 dark:border-slate-800">
                 <div className="space-y-2">
                   <label className="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Data</label>
-                  <div className="relative">
-                    <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600" size={16} />
-                    <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition font-bold text-slate-700 dark:text-slate-200 text-sm" required />
-                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => setShowDatePicker(true)}
+                    className="w-full flex items-center gap-3 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 transition-all hover:border-indigo-200 dark:hover:border-indigo-500/30"
+                  >
+                    <Calendar className="text-slate-300 dark:text-slate-600" size={16} />
+                    <span>{new Date(date + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
+                  </button>
                 </div>
                 <div className="space-y-2">
                   <label className="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Hora</label>
-                  <div className="relative">
-                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600" size={16} />
-                    <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition font-bold text-slate-700 dark:text-slate-200 text-sm" required />
-                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => setShowTimePicker(true)}
+                    className="w-full flex items-center gap-3 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 transition-all hover:border-indigo-200 dark:hover:border-indigo-500/30"
+                  >
+                    <Clock className="text-slate-300 dark:text-slate-600" size={16} />
+                    <span>{time}</span>
+                  </button>
                 </div>
               </div>
             </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {showDatePicker && (
+            <CustomDatePicker 
+              value={date} 
+              onChange={setDate} 
+              onClose={() => setShowDatePicker(false)} 
+            />
+          )}
+          {showTimePicker && (
+            <CustomTimePicker 
+              value={time} 
+              onChange={setTime} 
+              onClose={() => setShowTimePicker(false)} 
+            />
           )}
         </AnimatePresence>
 

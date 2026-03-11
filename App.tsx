@@ -101,40 +101,43 @@ const App: React.FC = () => {
       // Validação básica de origem
       if (!event.origin.endsWith('.run.app') && !event.origin.includes('localhost')) return;
 
-      if (event.data?.type === 'STRIPE_CHECKOUT_COMPLETED') {
-        const { status, sessionId } = event.data;
+      if (event.data?.type === 'STRIPE_CHECKOUT_COMPLETED' || event.data?.type === 'MP_PAYMENT_COMPLETED') {
+        const { status, sessionId, userId: mpUserId } = event.data;
 
-        if (status === 'success' && sessionId) {
+        if ((status === 'success' || status === 'approved') && (sessionId || mpUserId)) {
           const verifyPayment = async () => {
             try {
-              const response = await fetch(`/api/verify-session?session_id=${sessionId}`);
-              const data = await response.json();
-              
-              if (data.success && data.userId === user?.uid) {
-                setConfig(prev => ({
-                  ...prev,
-                  profile: {
-                    ...prev.profile,
-                    isPro: true,
-                    subscriptionStatus: 'active'
-                  }
-                }));
-                
-                confetti({
-                  particleCount: 200,
-                  spread: 100,
-                  origin: { y: 0.6 }
-                });
-                showToast("Parabéns! Você agora é PRO! 💎");
-                setIsSubModalOpen(false);
+              // Se for Stripe, verifica via API. Se for Mercado Pago, o Webhook já deve ter atualizado, 
+              // mas forçamos uma atualização local para feedback imediato.
+              if (sessionId) {
+                const response = await fetch(`/api/verify-session?session_id=${sessionId}`);
+                const data = await response.json();
+                if (!data.success || data.userId !== user?.uid) return;
               }
+
+              setConfig(prev => ({
+                ...prev,
+                profile: {
+                  ...prev.profile,
+                  isPro: true,
+                  subscriptionStatus: 'active'
+                }
+              }));
+              
+              confetti({
+                particleCount: 200,
+                spread: 100,
+                origin: { y: 0.6 }
+              });
+              showToast("Parabéns! Você agora é PRO! 💎");
+              setIsSubModalOpen(false);
             } catch (error) {
               console.error("Erro ao verificar pagamento:", error);
             }
           };
           verifyPayment();
-        } else if (status === 'cancel') {
-          showToast("Assinatura cancelada.", "error");
+        } else if (status === 'cancel' || status === 'failure') {
+          showToast("Pagamento não concluído.", "error");
         }
       }
     };
@@ -229,57 +232,42 @@ const App: React.FC = () => {
   const handleSubscribe = async (planType: 'monthly' | 'yearly' = 'monthly') => {
     if (!user) return;
     
-    // Detecta se está rodando como PWA instalado (standalone)
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
-    
-    // Se houver um link de pagamento direto configurado e não quisermos usar a API dinâmica
-    const paymentLink = planType === 'monthly' 
-      ? import.meta.env.VITE_STRIPE_PAYMENT_LINK_MONTHLY 
-      : import.meta.env.VITE_STRIPE_PAYMENT_LINK_YEARLY;
-
-    if (paymentLink) {
-      const urlWithUser = new URL(paymentLink);
-      urlWithUser.searchParams.set('client_reference_id', user.uid);
-      // Opcional: Adicionar email do usuário se disponível
-      if (user.email) urlWithUser.searchParams.set('prefilled_email', user.email);
-      
-      window.open(urlWithUser.toString(), '_blank');
-      return;
-    }
-
-    // Em PWA instalado, popups são frequentemente bloqueados ou problemáticos.
-    // Melhor usar redirecionamento direto.
-    if (isStandalone) {
-      setIsSaving(true); // Feedback visual
-      try {
-        const response = await fetch('/api/create-checkout-session', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: user.uid, planType }),
-        });
-        const data = await response.json();
-        if (response.ok && data.url) {
-          window.location.href = data.url;
-        } else {
-          showToast(data.error || "Erro ao iniciar checkout.", "error");
-        }
-      } catch (error) {
-        console.error("Erro ao assinar:", error);
-        showToast("Erro de conexão.", "error");
-      } finally {
-        setIsSaving(false);
-      }
-      return;
-    }
-
-    // Redirecionamento direto via GET (método mais robusto para evitar erros de conexão em mobile/iframes)
     setIsSaving(true);
-    
-    // Monta a URL de redirecionamento
-    const redirectUrl = `/api/checkout-redirect?userId=${user.uid}&plan=${planType}`;
-    
-    // Redireciona a página inteira. O servidor cuidará de criar a sessão e enviar para o Stripe.
-    window.location.href = redirectUrl;
+    try {
+      // Usando Mercado Pago como padrão para CPF/Pessoa Física
+      const response = await fetch('/api/mercadopago/create-preference', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          userId: user.uid, 
+          planType,
+          email: user.email 
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.init_point) {
+        // Abre o checkout do Mercado Pago em uma nova janela (Popup)
+        const width = 600;
+        const height = 700;
+        const left = (window.innerWidth - width) / 2;
+        const top = (window.innerHeight - height) / 2;
+        
+        window.open(
+          data.init_point, 
+          'mercadopago_checkout', 
+          `width=${width},height=${height},top=${top},left=${left}`
+        );
+      } else {
+        showToast(data.error || "Erro ao iniciar pagamento.", "error");
+      }
+    } catch (error) {
+      console.error("Erro ao assinar:", error);
+      showToast("Erro de conexão.", "error");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // 1. Notificações Personalizadas (Timer de 1 minuto)
@@ -868,7 +856,7 @@ const App: React.FC = () => {
                 onToggleShift={toggleShift}
               />
             )}
-            {activeTab === 'expenses' && <Expenses entries={entries} config={config} onEdit={setEditingEntry} onAdd={addEntry} />}
+            {activeTab === 'expenses' && <Expenses entries={entries} config={config} onEdit={setEditingEntry} onAdd={addEntry} onDelete={deleteEntry} onUpdate={updateEntry} />}
             {activeTab === 'maintenance' && <Maintenance entries={entries} config={config} onEdit={setEditingEntry} onAdd={addEntry} />}
             {activeTab === 'ponto' && <TimeTracking timeEntries={timeEntries} onAdd={addTimeEntry} onUpdate={updateTimeEntry} onDelete={deleteTimeEntry} />}
             {activeTab === 'reports' && <Reports entries={entries} timeEntries={timeEntries} config={config} onAddEntry={addEntry} onOpenSubscription={() => setIsSubModalOpen(true)} />}

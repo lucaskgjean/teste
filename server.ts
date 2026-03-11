@@ -3,6 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import Stripe from "stripe";
 import admin from "firebase-admin";
+import { MercadoPagoConfig, Preference } from 'mercadopago';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,6 +38,20 @@ function getStripe() {
     stripeClient = new Stripe(key);
   }
   return stripeClient;
+}
+
+// Inicialização do Mercado Pago
+let mpClient: MercadoPagoConfig | null = null;
+function getMercadoPago() {
+  if (!mpClient) {
+    const accessToken = process.env.MP_ACCESS_TOKEN;
+    if (!accessToken) {
+      console.warn("⚠️ MP_ACCESS_TOKEN não configurada. Pagamentos Mercado Pago desativados.");
+      return null;
+    }
+    mpClient = new MercadoPagoConfig({ accessToken });
+  }
+  return mpClient;
 }
 
 const app = express();
@@ -268,6 +283,135 @@ app.get("/api/stripe-callback", (req, res) => {
       </body>
     </html>
   `);
+});
+
+// --- MERCADO PAGO ROUTES ---
+
+// Criar Preferência de Pagamento (Checkout)
+app.post("/api/mercadopago/create-preference", async (req, res) => {
+  const client = getMercadoPago();
+  if (!client) {
+    return res.status(500).json({ error: "Mercado Pago não configurado no servidor." });
+  }
+
+  const { userId, planType, email } = req.body;
+  const appUrl = process.env.APP_URL || `https://${req.get('host')}`;
+
+  const isYearly = planType === 'yearly';
+  const amount = isYearly ? 119.90 : 19.90;
+  const title = `RotaFinanceira PRO - ${isYearly ? 'Anual' : 'Mensal'}`;
+
+  try {
+    const preference = new Preference(client);
+    const result = await preference.create({
+      body: {
+        items: [
+          {
+            id: planType,
+            title: title,
+            quantity: 1,
+            unit_price: amount,
+            currency_id: 'BRL'
+          }
+        ],
+        payer: {
+          email: email || 'usuario@rotafinanceira.com'
+        },
+        back_urls: {
+          success: `${appUrl}/api/mercadopago/callback?status=success&userId=${userId}`,
+          failure: `${appUrl}/api/mercadopago/callback?status=failure`,
+          pending: `${appUrl}/api/mercadopago/callback?status=pending`
+        },
+        auto_return: 'approved',
+        external_reference: userId, // Importante para o Webhook
+        metadata: {
+          userId: userId,
+          planType: planType
+        }
+      }
+    });
+
+    res.json({ id: result.id, init_point: result.init_point });
+  } catch (error: any) {
+    console.error("❌ Erro ao criar preferência no Mercado Pago:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Callback do Mercado Pago (Redirecionamento do usuário)
+app.get("/api/mercadopago/callback", (req, res) => {
+  const { status, userId } = req.query;
+  
+  res.send(`
+    <html>
+      <body style="background: #0f172a; color: white; font-family: sans-serif; display: flex; items-center; justify-content: center; height: 100vh; margin: 0;">
+        <div style="text-align: center;">
+          <h2 style="margin-bottom: 10px;">${status === 'approved' || status === 'success' ? 'Pagamento Recebido! 🎉' : 'Processando Pagamento...'}</h2>
+          <p style="color: #94a3b8; font-size: 14px;">Estamos atualizando seu acesso. Esta janela fechará automaticamente...</p>
+          <script>
+            if (window.opener) {
+              window.opener.postMessage({ 
+                type: 'MP_PAYMENT_COMPLETED', 
+                status: '${status}',
+                userId: '${userId || ''}'
+              }, '*');
+              setTimeout(() => window.close(), 3000);
+            } else {
+              window.location.href = '/';
+            }
+          </script>
+        </div>
+      </body>
+    </html>
+  `);
+});
+
+// Webhook do Mercado Pago (Notificação Server-to-Server)
+app.post("/api/mercadopago/webhook", async (req, res) => {
+  const { action, data } = req.body;
+  
+  // O Mercado Pago envia várias notificações. Queremos apenas quando um pagamento é criado/atualizado.
+  if (action === "payment.created" || action === "payment.updated" || req.query.topic === "payment") {
+    const paymentId = data?.id || req.query.id;
+    const client = getMercadoPago();
+    
+    if (paymentId && client) {
+      try {
+        // Busca os detalhes do pagamento para confirmar o status
+        const response = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+          headers: { 'Authorization': `Bearer ${process.env.MP_ACCESS_TOKEN}` }
+        });
+        const paymentData = await response.json();
+        
+        if (paymentData.status === 'approved') {
+          const userId = paymentData.external_reference;
+          console.log(`💰 [MP] Pagamento aprovado para o usuário: ${userId}`);
+
+          const firebaseAdmin = (admin as any).default || admin;
+          if (userId && firebaseAdmin.apps.length > 0) {
+            const db = firebaseAdmin.firestore();
+            const userRef = db.collection('users').doc(userId);
+            
+            await userRef.set({
+              config: {
+                profile: {
+                  isPro: true,
+                  subscriptionStatus: 'active',
+                  updatedAt: new Date().toISOString()
+                }
+              }
+            }, { merge: true });
+            
+            console.log(`✅ [MP] Status PRO ativado para ${userId}`);
+          }
+        }
+      } catch (e) {
+        console.error("❌ Erro ao processar Webhook do Mercado Pago:", e);
+      }
+    }
+  }
+
+  res.status(200).send("OK");
 });
 
 // Vite middleware para desenvolvimento

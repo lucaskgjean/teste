@@ -3,6 +3,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { TimeEntry } from '../types';
 import { generateId, calculateDuration, formatDuration, getLocalDateStr } from '../utils/calculations';
 import { motion, AnimatePresence } from 'motion/react';
+import CustomDatePicker from './CustomDatePicker';
+import CustomTimePicker from './CustomTimePicker';
 import { 
   Clock, 
   Play, 
@@ -38,6 +40,9 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({ timeEntries, onAdd, onUpdat
   const [formEnd, setFormEnd] = useState('18:00');
   const [formBreak, setFormBreak] = useState('60');
   const [formNotes, setFormNotes] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -356,32 +361,38 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({ timeEntries, onAdd, onUpdat
               <div className="p-8 space-y-6">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Data do Turno</label>
-                  <input 
-                    type="date" 
-                    value={formDate}
-                    onChange={(e) => setFormDate(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm font-black focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
-                  />
+                  <button 
+                    type="button"
+                    onClick={() => setShowDatePicker(true)}
+                    className="w-full flex items-center gap-3 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm font-black focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
+                  >
+                    <Calendar className="text-slate-300 dark:text-slate-600" size={18} />
+                    <span>{new Date(formDate + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
+                  </button>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Entrada</label>
-                    <input 
-                      type="time" 
-                      value={formStart}
-                      onChange={(e) => setFormStart(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm font-black focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white font-mono-num"
-                    />
+                    <button 
+                      type="button"
+                      onClick={() => setShowStartTimePicker(true)}
+                      className="w-full flex items-center gap-3 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm font-black focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white font-mono-num"
+                    >
+                      <Clock className="text-slate-300 dark:text-slate-600" size={18} />
+                      <span>{formStart}</span>
+                    </button>
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Saída</label>
-                    <input 
-                      type="time" 
-                      value={formEnd}
-                      onChange={(e) => setFormEnd(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm font-black focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white font-mono-num"
-                    />
+                    <button 
+                      type="button"
+                      onClick={() => setShowEndTimePicker(true)}
+                      className="w-full flex items-center gap-3 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm font-black focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white font-mono-num"
+                    >
+                      <Clock className="text-slate-300 dark:text-slate-600" size={18} />
+                      <span>{formEnd}</span>
+                    </button>
                   </div>
                 </div>
 
@@ -414,6 +425,30 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({ timeEntries, onAdd, onUpdat
                   <Save size={18} /> {editingEntry ? 'Salvar Alterações' : 'Confirmar Lançamento'}
                 </button>
               </div>
+
+              <AnimatePresence>
+                {showDatePicker && (
+                  <CustomDatePicker 
+                    value={formDate} 
+                    onChange={setFormDate} 
+                    onClose={() => setShowDatePicker(false)} 
+                  />
+                )}
+                {showStartTimePicker && (
+                  <CustomTimePicker 
+                    value={formStart} 
+                    onChange={setFormStart} 
+                    onClose={() => setShowStartTimePicker(false)} 
+                  />
+                )}
+                {showEndTimePicker && (
+                  <CustomTimePicker 
+                    value={formEnd} 
+                    onChange={setFormEnd} 
+                    onClose={() => setShowEndTimePicker(false)} 
+                  />
+                )}
+              </AnimatePresence>
             </motion.div>
           </div>
         )}

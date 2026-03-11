@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { DailyEntry, AppConfig } from '../types';
 import { generateId, getLocalDateStr } from '../utils/calculations';
 import { motion, AnimatePresence } from 'motion/react';
+import CustomDatePicker from './CustomDatePicker';
 import { 
   Navigation, 
   Fuel, 
@@ -23,6 +24,7 @@ const QuickKM: React.FC<QuickKMProps> = ({ onAdd, config, entries }) => {
   const [date, setDate] = useState<string>(getLocalDateStr());
   const [kmType, setKmType] = useState<'work' | 'personal'>('work');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Calculate fuel price based on expenses for the selected date
   const fuelPrice = React.useMemo(() => {
@@ -169,18 +171,26 @@ const QuickKM: React.FC<QuickKMProps> = ({ onAdd, config, entries }) => {
             >
               <div className="pt-6 border-t border-slate-50 dark:border-slate-800">
                 <label className="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 ml-1">Data do Fechamento</label>
-                <div className="relative">
-                  <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600" size={18} />
-                  <input 
-                    type="date" 
-                    value={date} 
-                    onChange={(e) => setDate(e.target.value)} 
-                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl pl-12 pr-4 py-4 focus:outline-none focus:ring-2 focus:ring-rose-500 transition font-black text-slate-700 dark:text-slate-200 text-sm" 
-                    required 
-                  />
-                </div>
+                <button 
+                  type="button"
+                  onClick={() => setShowDatePicker(true)}
+                  className="w-full flex items-center gap-3 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl px-4 py-4 text-sm font-black text-slate-700 dark:text-slate-200 transition-all hover:border-rose-200 dark:hover:border-rose-500/30"
+                >
+                  <Calendar className="text-slate-300 dark:text-slate-600" size={18} />
+                  <span>{new Date(date + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
+                </button>
               </div>
             </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {showDatePicker && (
+            <CustomDatePicker 
+              value={date} 
+              onChange={setDate} 
+              onClose={() => setShowDatePicker(false)} 
+            />
           )}
         </AnimatePresence>
 

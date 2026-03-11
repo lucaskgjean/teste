@@ -2,8 +2,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { DailyEntry, AppConfig, TimeEntry } from '../types';
 import { formatCurrency, getWeeklySummary, calculateDuration, formatDuration, getLocalDateStr, calculateFuelMetrics } from '../utils/calculations';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
+import CustomDatePicker from './CustomDatePicker';
 import CustomDialog from './CustomDialog';
+import CustomSelect from './CustomSelect';
 import { 
   BarChart, 
   Bar, 
@@ -144,7 +146,10 @@ const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config, onAddEn
 
   const [startDate, setStartDate] = useState<string>(today);
   const [endDate, setEndDate] = useState<string>(today);
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [selectedStore, setSelectedStore] = useState<string>('all');
+  const [showStoreSelect, setShowStoreSelect] = useState(false);
   const [showStoreFilter, setShowStoreFilter] = useState(false);
   const [dialog, setDialog] = useState<{
     isOpen: boolean;
@@ -415,43 +420,43 @@ const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config, onAddEn
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="relative">
               <label className="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 ml-1">Início</label>
-              <div className="relative">
-                <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600" size={18} />
-                <input 
-                  type="date" 
-                  value={startDate} 
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl pl-12 pr-4 py-4 focus:ring-2 focus:ring-indigo-500 transition outline-none font-black text-slate-700 dark:text-slate-200 text-sm"
-                />
-              </div>
+              <button 
+                type="button"
+                onClick={() => setShowStartDatePicker(true)}
+                className="w-full flex items-center gap-3 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl px-4 py-4 focus:ring-2 focus:ring-indigo-500 transition outline-none font-black text-slate-700 dark:text-slate-200 text-sm"
+              >
+                <Calendar className="text-slate-300 dark:text-slate-600" size={18} />
+                <span>{startDate ? new Date(startDate + 'T12:00:00').toLocaleDateString('pt-BR') : 'Início'}</span>
+              </button>
             </div>
             <div className="relative">
               <label className="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 ml-1">Fim</label>
-              <div className="relative">
-                <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600" size={18} />
-                <input 
-                  type="date" 
-                  value={endDate} 
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl pl-12 pr-4 py-4 focus:ring-2 focus:ring-indigo-500 transition outline-none font-black text-slate-700 dark:text-slate-200 text-sm"
-                />
-              </div>
+              <button 
+                type="button"
+                onClick={() => setShowEndDatePicker(true)}
+                className="w-full flex items-center gap-3 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl px-4 py-4 focus:ring-2 focus:ring-indigo-500 transition outline-none font-black text-slate-700 dark:text-slate-200 text-sm"
+              >
+                <Calendar className="text-slate-300 dark:text-slate-600" size={18} />
+                <span>{endDate ? new Date(endDate + 'T12:00:00').toLocaleDateString('pt-BR') : 'Fim'}</span>
+              </button>
             </div>
             <div className="relative">
               <label className="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 ml-1">Filtrar por Loja</label>
-              <div className="relative">
-                <Store className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600" size={18} />
-                <select 
-                  value={selectedStore} 
-                  onChange={(e) => setSelectedStore(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl pl-12 pr-4 py-4 focus:ring-2 focus:ring-indigo-500 transition outline-none font-black text-slate-700 dark:text-slate-200 text-sm appearance-none"
-                >
-                  <option value="all">Todas as Lojas</option>
-                  {reportData.uniqueStores.map(store => (
-                    <option key={store} value={store}>{store}</option>
-                  ))}
-                </select>
-              </div>
+              <CustomSelect
+                value={selectedStore}
+                options={[
+                  { id: 'all', label: 'Todas as Lojas', icon: <Store size={14} /> },
+                  ...reportData.uniqueStores.map(store => ({
+                    id: store,
+                    label: store,
+                    icon: <Package size={14} />
+                  }))
+                ]}
+                onChange={setSelectedStore}
+                isOpen={showStoreSelect}
+                onOpen={() => setShowStoreSelect(true)}
+                onClose={() => setShowStoreSelect(false)}
+              />
             </div>
           </div>
         </div>
@@ -1032,6 +1037,23 @@ const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config, onAddEn
           </div>
         </div>
       </motion.div>
+
+      <AnimatePresence>
+        {showStartDatePicker && (
+          <CustomDatePicker 
+            value={startDate} 
+            onChange={setStartDate} 
+            onClose={() => setShowStartDatePicker(false)} 
+          />
+        )}
+        {showEndDatePicker && (
+          <CustomDatePicker 
+            value={endDate} 
+            onChange={setEndDate} 
+            onClose={() => setShowEndDatePicker(false)} 
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };
