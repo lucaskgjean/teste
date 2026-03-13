@@ -129,9 +129,13 @@ const Dashboard: React.FC<DashboardProps> = ({ entries, timeEntries, config, onE
       <motion.div variants={itemVariants} className="sticky top-[72px] z-30 flex justify-center pointer-events-none">
         <button 
           onClick={onToggleShift}
-          className="pointer-events-auto flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-md border backdrop-blur-md bg-emerald-500/10 border-emerald-500/40 text-emerald-600 dark:text-emerald-400"
+          className={`pointer-events-auto flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-md border backdrop-blur-md ${
+            todayTimeEntries.find(t => !t.endTime)
+              ? 'bg-rose-500/10 border-rose-500/40 text-rose-600 dark:text-rose-400' 
+              : 'bg-emerald-500/10 border-emerald-500/40 text-emerald-600 dark:text-emerald-400'
+          }`}
         >
-          <Clock size={14} className={`text-emerald-500 ${todayTimeEntries.find(t => !t.endTime) ? 'animate-pulse' : ''}`} />
+          <Clock size={14} className={`${todayTimeEntries.find(t => !t.endTime) ? 'text-rose-500 animate-pulse' : 'text-emerald-500'}`} />
           {todayTimeEntries.find(t => !t.endTime) ? 'Encerrar Ponto' : 'Iniciar Ponto'}
         </button>
       </motion.div>
