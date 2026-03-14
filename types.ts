@@ -33,6 +33,8 @@ export interface WeeklySummary {
   totalSpentOthers: number;
   totalFees: number;
   totalKm?: number;
+  workKm?: number;
+  personalKm?: number;
   totalLiters?: number;
 }
 

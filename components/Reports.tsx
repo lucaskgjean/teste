@@ -228,7 +228,7 @@ const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config, onAddEn
     const avgFuelPerLaunch = quickLaunchesCount > 0 ? totalFuelReserved / quickLaunchesCount : 0;
 
     const totalFuelLiters = filteredEntries.reduce((acc, curr) => acc + (curr.liters || 0), 0);
-    const earningsPerKm = summary.totalKm && summary.totalKm > 0 ? summary.totalGross / summary.totalKm : 0;
+    const earningsPerKm = summary.workKm && summary.workKm > 0 ? summary.totalGross / summary.workKm : 0;
     const expensePerKm = summary.totalKm && summary.totalKm > 0 ? totalExpenses / summary.totalKm : 0;
     const avgKmPerLiter = totalFuelLiters > 0 ? summary.totalKm / totalFuelLiters : 0;
 
@@ -320,7 +320,7 @@ const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config, onAddEn
       });
       return;
     }
-    const headers = ['Data', 'Hora', 'Loja/Descrição', 'Bruto', 'Combustível', 'Alimentação', 'Manutenção', 'Outros', 'Líquido', 'KM Rodados', 'Pagamento'];
+    const headers = ['Data', 'Hora', 'Loja/Descrição', 'Bruto', 'Combustível', 'Alimentação', 'Manutenção', 'Outros', 'Líquido', 'KM Rodados', 'Tipo KM', 'Pagamento'];
     const rows = reportData.filteredEntries.map(e => [
       e.date,
       e.time,
@@ -331,16 +331,38 @@ const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config, onAddEn
       e.maintenance,
       e.others || 0,
       e.netAmount,
-      e.kmDriven || '',
+      e.kmDriven || 0,
+      e.kmType || 'work',
       e.paymentMethod || ''
     ]);
 
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.join(','))
-    ].join('\n');
+    const formatCSVValue = (val: any) => {
+      const s = String(val);
+      if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+        return `"${s.replace(/"/g, '""')}"`;
+      }
+      return s;
+    };
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const csvRows = [
+      headers.join(','),
+      ...rows.map(row => row.map(formatCSVValue).join(','))
+    ];
+
+    // Adicionar Resumo ao CSV
+    csvRows.push('');
+    csvRows.push('RESUMO DO PERÍODO');
+    csvRows.push(`Total Bruto,${reportData.summary.totalGross.toFixed(2)}`);
+    csvRows.push(`Total Despesas,${reportData.totalExpenses.toFixed(2)}`);
+    csvRows.push(`Lucro Líquido,${(reportData.summary.totalGross - reportData.totalExpenses).toFixed(2)}`);
+    csvRows.push(`KM Total,${reportData.totalKm.toFixed(1)}`);
+    csvRows.push(`Ganhos por Hora,${reportData.avgGrossPerHour.toFixed(2)}`);
+    csvRows.push(`Gasto por KM,${reportData.expensePerKm.toFixed(2)}`);
+    csvRows.push(`Ganhos por KM,${reportData.earningsPerKm.toFixed(2)}`);
+
+    const csvContent = csvRows.join('\n');
+
+    const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);

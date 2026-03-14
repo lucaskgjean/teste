@@ -50,8 +50,8 @@ const QuickKM: React.FC<QuickKMProps> = ({ onAdd, config, entries }) => {
     if (isNaN(numTotalKm) || numTotalKm <= 0) return;
 
     const lastKm = config.lastTotalKm || 0;
-    // Se for pessoal (-), kmDriven é 0 para não contar no faturamento/custo por km
-    const kmDriven = (kmType === 'work' && lastKm > 0) ? numTotalKm - lastKm : 0;
+    // kmDriven agora armazena a distância percorrida independente do tipo
+    const kmDriven = (lastKm > 0) ? numTotalKm - lastKm : 0;
 
     const newEntry: DailyEntry = {
       id: generateId(),

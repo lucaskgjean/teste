@@ -122,28 +122,6 @@ const History: React.FC<HistoryProps> = ({ entries, config, onDelete, onEdit, on
       animate="show"
       className="space-y-6 pb-24"
     >
-      {/* Alerta de Histórico */}
-      {todayEntries.length === 0 && entries.length > 0 && (
-        <motion.div 
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="bg-indigo-600 p-6 rounded-[2.5rem] flex items-center justify-between gap-4 shadow-lg shadow-indigo-100 relative overflow-hidden group"
-        >
-           <div className="flex items-center gap-4 relative z-10">
-              <div className="w-12 h-12 bg-indigo-400 rounded-2xl flex items-center justify-center text-white shrink-0">
-                 <Info size={24} />
-              </div>
-              <div>
-                <p className="text-sm font-black text-white leading-tight">Backup detectado!</p>
-                <p className="text-xs text-white/70 font-bold uppercase tracking-tight">Seu histórico completo está disponível abaixo.</p>
-              </div>
-           </div>
-           <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform">
-             <HistoryIcon size={120} />
-           </div>
-        </motion.div>
-      )}
-
       {/* Filtros Inteligentes */}
       <motion.div variants={itemVariants} className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800">
         <div className="flex items-center gap-3 mb-6">

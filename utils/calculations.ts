@@ -148,6 +148,8 @@ export const getWeeklySummary = (entries: DailyEntry[]): WeeklySummary => {
   const spentMaintenance = expenseEntries.reduce((acc, curr) => acc + curr.maintenance, 0);
   const spentOthers = expenseEntries.reduce((acc, curr) => acc + (curr.others || 0), 0);
   const totalKm = entries.reduce((acc, curr) => acc + (curr.kmDriven || 0), 0);
+  const workKm = entries.filter(e => !e.kmType || e.kmType === 'work').reduce((acc, curr) => acc + (curr.kmDriven || 0), 0);
+  const personalKm = entries.filter(e => e.kmType === 'personal').reduce((acc, curr) => acc + (curr.kmDriven || 0), 0);
   const totalLiters = expenseEntries.reduce((acc, curr) => acc + (curr.liters || 0), 0);
 
   const totalSpent = spentFuel + spentFood + spentMaintenance + spentOthers;
@@ -166,6 +168,8 @@ export const getWeeklySummary = (entries: DailyEntry[]): WeeklySummary => {
     totalSpentOthers: spentOthers,
     totalFees: totalSpent,
     totalKm,
+    workKm,
+    personalKm,
     totalLiters
   };
 };

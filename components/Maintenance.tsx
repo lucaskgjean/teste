@@ -42,6 +42,12 @@ const Maintenance: React.FC<MaintenanceProps> = ({ entries, config, onEdit, onAd
   const todaySum = getWeeklySummary(todayEntries);
   const monthSum = getWeeklySummary(monthEntries);
 
+  const todayKmStats = useMemo(() => {
+    const work = todayEntries.filter(e => e.kmType === 'work').reduce((acc, curr) => acc + (curr.kmDriven || 0), 0);
+    const personal = todayEntries.filter(e => e.kmType === 'personal').reduce((acc, curr) => acc + (curr.kmDriven || 0), 0);
+    return { work, personal, total: work + personal };
+  }, [todayEntries]);
+
   const maintenanceEntries = useMemo(() => {
     return entries.filter(e => {
       const isMaintenance = e.maintenance > 0 && e.grossAmount === 0;
@@ -135,7 +141,7 @@ const Maintenance: React.FC<MaintenanceProps> = ({ entries, config, onEdit, onAd
             <h3 className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Resumo Manutenção & KM</h3>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="flex flex-col">
               <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 block mb-0.5">Manutenção (Mês)</span>
               <div className="text-3xl font-black text-blue-600 dark:text-blue-400 tracking-tighter font-mono-num">{formatCurrency(monthSum.totalSpentMaintenance)}</div>
@@ -143,7 +149,12 @@ const Maintenance: React.FC<MaintenanceProps> = ({ entries, config, onEdit, onAd
             
             <div className="flex flex-col md:border-l border-slate-100 dark:border-slate-800 md:pl-6">
               <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 block mb-0.5">KM Trabalho (Hoje)</span>
-              <div className="text-xl font-black text-slate-800 dark:text-white tracking-tighter font-mono-num">{todaySum.totalKm.toFixed(1)} <span className="text-xs opacity-50">KM</span></div>
+              <div className="text-xl font-black text-slate-800 dark:text-white tracking-tighter font-mono-num">{todayKmStats.work.toFixed(1)} <span className="text-xs opacity-50">KM</span></div>
+            </div>
+
+            <div className="flex flex-col md:border-l border-slate-100 dark:border-slate-800 md:pl-6">
+              <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 block mb-0.5">KM Total (Hoje)</span>
+              <div className="text-xl font-black text-emerald-600 dark:text-emerald-400 tracking-tighter font-mono-num">{todayKmStats.total.toFixed(1)} <span className="text-xs opacity-50">KM</span></div>
             </div>
 
             <div className="flex flex-col md:border-l border-slate-100 dark:border-slate-800 md:pl-6">

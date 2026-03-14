@@ -78,7 +78,7 @@ const Dashboard: React.FC<DashboardProps> = ({ entries, timeEntries, config, onE
 
   const todayHoursDecimal = todayWorkedSeconds / 3600;
   const todayGrossPerHour = todayHoursDecimal > 0 ? todaySum.totalGross / todayHoursDecimal : 0;
-  const todayEarningsPerKm = todaySum.totalKm && todaySum.totalKm > 0 ? todaySum.totalGross / todaySum.totalKm : 0;
+  const todayEarningsPerKm = todaySum.workKm && todaySum.workKm > 0 ? todaySum.totalGross / todaySum.workKm : 0;
   const todayTotalSpent = todaySum.totalSpentFuel + todaySum.totalSpentFood + todaySum.totalSpentMaintenance + (todaySum.totalSpentOthers || 0);
 
   const fuelMetrics = calculateFuelMetrics(entries);
