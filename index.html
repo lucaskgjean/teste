@@ -64,13 +64,13 @@
           try {
             const config = JSON.parse(configStr);
             const mode = config.themeMode || 'auto';
-            isDark = mode === 'dark' || (mode === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            isDark = mode === 'dark' || (mode === 'auto' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
           } catch(e) {
-            isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
           }
         }
       } else {
-        isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
       }
 
       if (isDark) {

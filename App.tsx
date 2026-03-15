@@ -178,7 +178,7 @@ const App: React.FC = () => {
         isDark = false;
       } else {
         // Auto mode
-        isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
       }
 
       if (isDark) {
@@ -195,15 +195,24 @@ const App: React.FC = () => {
     applyTheme();
 
     // Listen for system theme changes if in auto mode
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = () => {
-      if (config.themeMode === 'auto') {
-        applyTheme();
-      }
-    };
+    const mediaQuery = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
     
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
+    if (mediaQuery) {
+      const handleChange = () => {
+        if (config.themeMode === 'auto') {
+          applyTheme();
+        }
+      };
+      
+      // Fallback para navegadores mais antigos (comum em WebViews de APKs)
+      if (mediaQuery.addEventListener) {
+        mediaQuery.addEventListener('change', handleChange);
+        return () => mediaQuery.removeEventListener('change', handleChange);
+      } else if (mediaQuery.addListener) {
+        mediaQuery.addListener(handleChange);
+        return () => mediaQuery.removeListener(handleChange);
+      }
+    }
   }, [config.themeMode]);
 
   const handleTabChange = (tab: typeof activeTab) => {

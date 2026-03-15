@@ -276,15 +276,17 @@ const History: React.FC<HistoryProps> = ({ entries, config, onDelete, onEdit, on
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   whileHover={{ y: -2, transition: { duration: 0.2 } }}
-                  className={`bg-white dark:bg-slate-900 rounded-[2.5rem] p-6 border-2 transition-all group relative overflow-hidden ${entry.grossAmount > 0 ? 'border-indigo-50 dark:border-indigo-500/10 hover:border-indigo-100 dark:hover:border-indigo-500/20' : 'border-rose-50 dark:border-rose-500/10 hover:border-rose-100 dark:hover:border-rose-500/20'}`}
+                  className={`bg-white dark:bg-slate-900 rounded-[2.5rem] p-6 border-2 transition-all group relative overflow-hidden ${
+                    entry.paymentMethod === 'money' 
+                      ? 'border-slate-100 dark:border-slate-800' 
+                      : entry.isPaid 
+                        ? 'border-emerald-500 dark:border-emerald-400' 
+                        : 'border-rose-500 dark:border-rose-400'
+                  } hover:shadow-md`}
                 >
-                  {/* Barra de Status Lateral */}
-                  {entry.paymentMethod !== 'money' && (
-                    <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${entry.isPaid ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                  )}
                   <div className="flex justify-between items-start mb-6">
                     <div className="flex gap-4 items-center">
-                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${entry.grossAmount > 0 ? 'bg-indigo-50 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400' : 'bg-rose-50 dark:bg-rose-900 text-rose-600 dark:text-rose-400'}`}>
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${entry.grossAmount > 0 ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' : 'bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400'}`}>
                         {entry.grossAmount > 0 ? <TrendingUp size={24} /> : <TrendingDown size={24} />}
                       </div>
                       <div>
@@ -342,7 +344,11 @@ const History: React.FC<HistoryProps> = ({ entries, config, onDelete, onEdit, on
                     {entry.paymentMethod !== 'money' && (
                       <button 
                         onClick={() => onUpdate({ ...entry, isPaid: !entry.isPaid })}
-                        className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl transition-all active:scale-95 border-2 ${entry.isPaid ? 'bg-emerald-50 border-emerald-100 text-emerald-600 dark:bg-emerald-900 dark:border-emerald-500/20 dark:text-emerald-400' : 'bg-rose-50 border-rose-100 text-rose-600 dark:bg-rose-900 dark:border-rose-500/20 dark:text-rose-400'}`}
+                        className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl transition-all active:scale-95 border-2 ${
+                          entry.isPaid 
+                            ? 'bg-emerald-50 border-emerald-200 text-emerald-600 dark:bg-emerald-400/10 dark:border-emerald-400/40 dark:text-emerald-400' 
+                            : 'bg-rose-50 border-rose-200 text-rose-600 dark:bg-rose-400/10 dark:border-rose-400/40 dark:text-rose-400'
+                        }`}
                       >
                         {entry.isPaid ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
                         <span className="text-[10px] font-semibold uppercase tracking-widest">
@@ -352,14 +358,14 @@ const History: React.FC<HistoryProps> = ({ entries, config, onDelete, onEdit, on
                     )}
                     <button 
                       onClick={() => onEdit(entry)}
-                      className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-indigo-50 dark:bg-indigo-900 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-2xl transition-all active:scale-95"
+                      className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:border-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-2xl transition-all active:scale-95"
                     >
                       <Edit3 size={14} />
                       <span className="text-[10px] font-semibold uppercase tracking-widest">Editar</span>
                     </button>
                     <button 
                       onClick={() => onDelete(entry.id)}
-                      className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-rose-50 dark:bg-rose-900 hover:bg-rose-100 dark:hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 rounded-2xl transition-all active:scale-95"
+                      className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-2xl transition-all active:scale-95"
                     >
                       <Trash2 size={14} />
                       <span className="text-[10px] font-semibold uppercase tracking-widest">Excluir</span>

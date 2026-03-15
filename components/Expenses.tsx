@@ -428,7 +428,12 @@ const Expenses: React.FC<ExpensesProps> = ({ entries, config, onEdit, onAdd, onD
                   layout
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-6 border-2 border-slate-50 dark:border-slate-800 hover:border-rose-100 dark:hover:border-rose-500/20 transition-all group relative overflow-hidden"
+                  className={`bg-white dark:bg-slate-900 rounded-[2.5rem] p-6 border-2 transition-all group relative overflow-hidden ${
+                    catInfo.color === 'rose' ? 'border-rose-500/40 dark:border-rose-500/20' :
+                    catInfo.color === 'amber' ? 'border-amber-500/40 dark:border-amber-500/20' :
+                    catInfo.color === 'blue' ? 'border-blue-500/40 dark:border-blue-500/20' :
+                    'border-slate-100 dark:border-slate-800'
+                  } hover:border-rose-100 dark:hover:border-rose-500/20`}
                 >
                   <div className="flex justify-between items-start mb-6">
                     <div className="flex gap-4 items-center">
@@ -461,17 +466,6 @@ const Expenses: React.FC<ExpensesProps> = ({ entries, config, onEdit, onAdd, onD
                   </div>
 
                   <div className="flex gap-2">
-                    {entry.paymentMethod !== 'money' && (
-                      <button 
-                        onClick={() => onUpdate({ ...entry, isPaid: !entry.isPaid })}
-                        className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl transition-all active:scale-95 border-2 ${entry.isPaid ? 'bg-emerald-50 border-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-400' : 'bg-rose-50 border-rose-100 text-rose-600 dark:bg-rose-500/10 dark:border-rose-500/20 dark:text-rose-400'}`}
-                      >
-                        {entry.isPaid ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
-                        <span className="text-[10px] font-semibold uppercase tracking-widest">
-                          {entry.isPaid ? 'Pago' : 'Pendente'}
-                        </span>
-                      </button>
-                    )}
                     <button 
                       onClick={() => onEdit(entry)}
                       className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:border-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-2xl transition-all active:scale-95"
