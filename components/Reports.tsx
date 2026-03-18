@@ -290,6 +290,7 @@ const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config, onAddEn
     const paymentMethodData = [
       { name: config.paymentMethodLabels?.money || 'Dinheiro', value: paymentMethodsMap['money'], color: '#10b981' },
       { name: config.paymentMethodLabels?.pix || 'PIX', value: paymentMethodsMap['pix'], color: '#06b6d4' },
+      { name: config.paymentMethodLabels?.debito || 'Débito', value: paymentMethodsMap['debito'], color: '#3b82f6' },
       { name: config.paymentMethodLabels?.caderno || 'Caderno', value: paymentMethodsMap['caderno'], color: '#f59e0b' },
     ].filter(item => item.value > 0);
 
@@ -297,6 +298,7 @@ const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config, onAddEn
     const expenseMethodsMap: Record<string, number> = {
       'money': 0,
       'pix': 0,
+      'debito': 0,
       'caderno': 0
     };
 
@@ -309,6 +311,7 @@ const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config, onAddEn
     const expenseMethodData = [
       { name: config.paymentMethodLabels?.money || 'Dinheiro', value: expenseMethodsMap['money'], color: '#ef4444' },
       { name: config.paymentMethodLabels?.pix || 'PIX', value: expenseMethodsMap['pix'], color: '#f97316' },
+      { name: config.paymentMethodLabels?.debito || 'Débito', value: expenseMethodsMap['debito'], color: '#3b82f6' },
       { name: config.paymentMethodLabels?.caderno || 'Caderno', value: expenseMethodsMap['caderno'], color: '#7c3aed' },
     ].filter(item => item.value > 0);
 
@@ -1081,6 +1084,7 @@ const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config, onAddEn
                 <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm shrink-0" style={{ backgroundColor: `${item.color}15`, color: item.color }}>
                   {(item.name === (config.paymentMethodLabels?.money || 'Dinheiro')) && <Wallet size={20} />}
                   {(item.name === (config.paymentMethodLabels?.pix || 'PIX')) && <ArrowUpRight size={20} />}
+                  {(item.name === (config.paymentMethodLabels?.debito || 'Débito')) && <CreditCard size={20} />}
                   {(item.name === (config.paymentMethodLabels?.caderno || 'Caderno')) && <MoreHorizontal size={20} />}
                 </div>
                 <div className="flex-1">
@@ -1162,6 +1166,7 @@ const Reports: React.FC<ReportsProps> = ({ entries, timeEntries, config, onAddEn
                 <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm shrink-0" style={{ backgroundColor: `${item.color}15`, color: item.color }}>
                   {(item.name === (config.paymentMethodLabels?.money || 'Dinheiro')) && <Wallet size={20} />}
                   {(item.name === (config.paymentMethodLabels?.pix || 'PIX')) && <ArrowUpRight size={20} />}
+                  {(item.name === (config.paymentMethodLabels?.debito || 'Débito')) && <CreditCard size={20} />}
                   {(item.name === (config.paymentMethodLabels?.caderno || 'Caderno')) && <MoreHorizontal size={20} />}
                 </div>
                 <div className="flex-1">

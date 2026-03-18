@@ -93,6 +93,7 @@ export interface AppConfig {
   paymentMethodLabels?: {
     money: string;
     pix: string;
+    debito: string;
     caderno: string;
   };
 }
@@ -111,6 +112,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   paymentMethodLabels: {
     money: 'Dinheiro',
     pix: 'PIX',
+    debito: 'Débito',
     caderno: 'Caderno'
   },
   profile: {
