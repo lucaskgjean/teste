@@ -44,12 +44,10 @@ const History: React.FC<HistoryProps> = ({ entries, config, onDelete, onEdit, on
   const todayStr = getLocalDateStr();
   const [filterStartDate, setFilterStartDate] = useState<string>(todayStr);
   const [filterEndDate, setFilterEndDate] = useState<string>(todayStr);
-  const [filterCategory, setFilterCategory] = useState<string>('');
   const [filterPayment, setFilterPayment] = useState<string>('');
   const [filterStatus, setFilterStatus] = useState<string>('');
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
-  const [showCategorySelect, setShowCategorySelect] = useState(false);
   const [showPaymentSelect, setShowPaymentSelect] = useState(false);
   const [showStatusSelect, setShowStatusSelect] = useState(false);
   const [showStoreSelect, setShowStoreSelect] = useState(false);
@@ -71,9 +69,6 @@ const History: React.FC<HistoryProps> = ({ entries, config, onDelete, onEdit, on
         (!filterEndDate || entry.date <= filterEndDate)
       ) : true;
       
-      const entryCategory = entry.category || (entry.grossAmount > 0 ? 'income' : (entry.fuel > 0 ? 'fuel' : entry.food > 0 ? 'food' : 'maintenance'));
-      const matchCategory = filterCategory ? entryCategory === filterCategory : true;
-      
       const matchPayment = filterPayment ? entry.paymentMethod === filterPayment : true;
       
       const matchStatus = filterStatus ? (
@@ -82,25 +77,17 @@ const History: React.FC<HistoryProps> = ({ entries, config, onDelete, onEdit, on
 
       const matchStore = filterStore ? entry.storeName.toLowerCase().includes(filterStore.toLowerCase()) : true;
       
-      return matchRange && matchCategory && matchPayment && matchStatus && matchStore;
+      return matchRange && matchPayment && matchStatus && matchStore;
     }).sort((a, b) => b.index - a.index)
       .map(item => item.entry);
-  }, [entries, filterStartDate, filterEndDate, filterCategory, filterPayment, filterStatus, filterStore]);
+  }, [entries, filterStartDate, filterEndDate, filterPayment, filterStatus, filterStore]);
 
   const stats = useMemo(() => getWeeklySummary(filteredEntries), [filteredEntries]);
-  const dailyBreakdown = useMemo(() => getDailyStats(filteredEntries, config), [filteredEntries, config]);
-
-  const goalSummary = useMemo(() => {
-    const days = dailyBreakdown.length;
-    const met = dailyBreakdown.filter(d => d.goalMet).length;
-    const notMet = days - met;
-    return { days, met, notMet };
-  }, [dailyBreakdown]);
+  const dailyBreakdown = useMemo(() => getDailyStats(entries, config), [entries, config]);
 
   const clearFilters = () => {
     setFilterStartDate(todayStr);
     setFilterEndDate(todayStr);
-    setFilterCategory('');
     setFilterPayment('');
     setFilterStatus('');
     onFilterStoreChange('');
@@ -137,7 +124,7 @@ const History: React.FC<HistoryProps> = ({ entries, config, onDelete, onEdit, on
           <h3 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Filtros de Busca</h3>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
           <div className="space-y-2">
             <label className="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Início</label>
             <button 
@@ -159,24 +146,6 @@ const History: React.FC<HistoryProps> = ({ entries, config, onDelete, onEdit, on
               <Calendar className="text-slate-300 dark:text-slate-600" size={16} />
               <span>{filterEndDate ? new Date(filterEndDate + 'T12:00:00').toLocaleDateString('pt-BR') : 'Fim'}</span>
             </button>
-          </div>
-          <div className="space-y-2">
-            <CustomSelect
-              label="Categoria"
-              value={filterCategory}
-              options={[
-                { id: '', label: 'Todas', icon: <Layers size={14} /> },
-                { id: 'income', label: 'Lucros', icon: <TrendingUp size={14} className="text-emerald-500" /> },
-                { id: 'fuel', label: 'Combustível', icon: <TrendingDown size={14} className="text-rose-500" /> },
-                { id: 'food', label: 'Alimentação', icon: <TrendingDown size={14} className="text-orange-500" /> },
-                { id: 'maintenance', label: 'Manutenção', icon: <TrendingDown size={14} className="text-blue-500" /> },
-                { id: 'others', label: 'Outros', icon: <TrendingDown size={14} className="text-slate-500" /> }
-              ]}
-              onChange={setFilterCategory}
-              isOpen={showCategorySelect}
-              onOpen={() => setShowCategorySelect(true)}
-              onClose={() => setShowCategorySelect(false)}
-            />
           </div>
           <div className="space-y-2">
             <CustomSelect
@@ -241,8 +210,8 @@ const History: React.FC<HistoryProps> = ({ entries, config, onDelete, onEdit, on
         {[
           { label: 'Bruto Total', value: formatCurrency(stats.totalGross), color: 'text-slate-800 dark:text-white', bg: 'bg-white dark:bg-slate-900' },
           { label: 'Líquido Total', value: formatCurrency(stats.totalNet), color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-white dark:bg-slate-900' },
-          { label: 'Metas Batidas', value: `${goalSummary.met} ✓`, color: 'text-emerald-700 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900' },
-          { label: 'Metas Falhas', value: `${goalSummary.notMet} ✗`, color: 'text-rose-700 dark:text-rose-400', bg: 'bg-rose-50 dark:bg-rose-900' },
+          { label: 'Recebido', value: formatCurrency(stats.totalPaid), color: 'text-emerald-700 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900' },
+          { label: 'Pendente', value: formatCurrency(stats.totalPending), color: 'text-rose-700 dark:text-rose-400', bg: 'bg-rose-50 dark:bg-rose-900' },
         ].map((stat, i) => (
           <motion.div 
             key={i}
@@ -281,7 +250,7 @@ const History: React.FC<HistoryProps> = ({ entries, config, onDelete, onEdit, on
                 <p className="text-xs text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest">Nenhum registro encontrado</p>
               </motion.div>
             ) : (
-              filteredEntries.map((entry) => (
+              (showFullHistory ? filteredEntries : filteredEntries.slice(0, 1)).map((entry) => (
                 <motion.div 
                   layout
                   key={entry.id}
@@ -336,24 +305,23 @@ const History: React.FC<HistoryProps> = ({ entries, config, onDelete, onEdit, on
                     </div>
                   </div>
 
-                  {entry.grossAmount > 0 && (
-                    <div className="grid grid-cols-3 gap-2 p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-800 mb-6">
-                      <div className="space-y-0.5">
-                        <span className="text-[8px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-tighter">Comb.</span>
-                        <span className="text-xs font-bold text-slate-600 dark:text-slate-300 font-mono-num">{formatCurrency(entry.fuel).replace('R$', '')}</span>
-                      </div>
-                      <div className="space-y-0.5">
-                        <span className="text-[8px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-tighter">Alim.</span>
-                        <span className="text-xs font-bold text-slate-600 dark:text-slate-300 font-mono-num">{formatCurrency(entry.food).replace('R$', '')}</span>
-                      </div>
-                      <div className="space-y-0.5">
-                        <span className="text-[8px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-tighter">Líquido</span>
-                        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 font-mono-num">{formatCurrency(entry.netAmount).replace('R$', '')}</span>
-                      </div>
-                    </div>
-                  )}
-
+                  {/* Removido a parte de projeção conforme solicitado */}
+                  
                   <div className="flex gap-2">
+                    <button 
+                      onClick={() => onDelete(entry.id)}
+                      className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-2xl transition-all active:scale-95"
+                    >
+                      <Trash2 size={14} />
+                      <span className="text-[10px] font-semibold uppercase tracking-widest">Excluir</span>
+                    </button>
+                    <button 
+                      onClick={() => onEdit(entry)}
+                      className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:border-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-2xl transition-all active:scale-95"
+                    >
+                      <Edit3 size={14} />
+                      <span className="text-[10px] font-semibold uppercase tracking-widest">Editar</span>
+                    </button>
                     {entry.paymentMethod !== 'money' && (
                       <button 
                         onClick={() => onUpdate({ ...entry, isPaid: !entry.isPaid })}
@@ -369,54 +337,31 @@ const History: React.FC<HistoryProps> = ({ entries, config, onDelete, onEdit, on
                         </span>
                       </button>
                     )}
-                    <button 
-                      onClick={() => onEdit(entry)}
-                      className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:border-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-2xl transition-all active:scale-95"
-                    >
-                      <Edit3 size={14} />
-                      <span className="text-[10px] font-semibold uppercase tracking-widest">Editar</span>
-                    </button>
-                    <button 
-                      onClick={() => onDelete(entry.id)}
-                      className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-2xl transition-all active:scale-95"
-                    >
-                      <Trash2 size={14} />
-                      <span className="text-[10px] font-semibold uppercase tracking-widest">Excluir</span>
-                    </button>
                   </div>
                 </motion.div>
               ))
             )}
           </AnimatePresence>
+
+          {filteredEntries.length > 1 && (
+            <motion.button
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              onClick={() => setShowFullHistory(!showFullHistory)}
+              className="w-full mt-4 py-4 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-[2rem] text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 hover:text-indigo-500 dark:hover:text-indigo-400 transition-all flex items-center justify-center gap-2"
+            >
+              {showFullHistory ? (
+                <>Ocultar Histórico <X size={14} /></>
+              ) : (
+                <>Ver Todos os Lançamentos ({filteredEntries.length}) <ChevronRight size={14} /></>
+              )}
+            </motion.button>
+          )}
         </div>
       </div>
 
-      {/* Timeline de Performance */}
-      <motion.div variants={itemVariants} className="bg-slate-900 rounded-[2.5rem] p-8 text-white overflow-hidden relative shadow-xl">
-        <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-8 h-8 bg-indigo-900 rounded-lg flex items-center justify-center text-indigo-400">
-              <TrendingUp size={18} />
-            </div>
-            <h4 className="text-[10px] font-black uppercase tracking-[0.3em]">Performance Diária</h4>
-          </div>
-          
-          <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide">
-             {dailyBreakdown.slice(0, 14).map((day, i) => (
-               <div key={i} className={`flex-shrink-0 w-16 p-3 rounded-[1.5rem] border text-center transition-all ${day.goalMet ? 'bg-emerald-900 border-emerald-500/30' : 'bg-slate-800 border-slate-700'}`}>
-                  <span className="text-[8px] font-black opacity-40 block mb-2 uppercase tracking-tighter">
-                    {new Date(day.date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short' })}
-                  </span>
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-2 ${day.goalMet ? 'bg-emerald-800 text-emerald-400' : 'bg-slate-700 text-slate-500'}`}>
-                    {day.goalMet ? <Check size={20} strokeWidth={3} /> : <div className="w-1.5 h-1.5 bg-slate-600 rounded-full" />}
-                  </div>
-                  <span className="text-xs font-black font-mono-num">{day.date.split('-')[2]}</span>
-               </div>
-             ))}
-          </div>
-        </div>
-        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-900 blur-[100px] -mr-20 -mt-20 rounded-full"></div>
-      </motion.div>
+      {/* Calendário de Performance */}
+      <PerformanceCalendar dailyStats={dailyBreakdown} />
 
       <AnimatePresence>
         {showStartDatePicker && (
@@ -434,6 +379,142 @@ const History: React.FC<HistoryProps> = ({ entries, config, onDelete, onEdit, on
           />
         )}
       </AnimatePresence>
+    </motion.div>
+  );
+};
+
+const PerformanceCalendar = ({ dailyStats }: { dailyStats: any[] }) => {
+  const [currentDate, setCurrentDate] = useState(new Date());
+
+  const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
+  const firstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
+
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+
+  const monthName = new Intl.DateTimeFormat('pt-BR', { month: 'long' }).format(currentDate);
+  const capitalizedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+
+  const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
+  const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
+
+  const days = [];
+  const totalDays = daysInMonth(year, month);
+  const startDay = firstDayOfMonth(year, month);
+
+  // Preencher dias vazios no início
+  for (let i = 0; i < startDay; i++) {
+    days.push(null);
+  }
+
+  // Preencher dias do mês
+  for (let d = 1; d <= totalDays; d++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const stats = dailyStats.find(s => s.date === dateStr);
+    days.push({ day: d, stats });
+  }
+
+  const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-6 border border-slate-100 dark:border-slate-800 shadow-sm mt-6"
+    >
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-500">
+            <Calendar size={18} />
+          </div>
+          <div>
+            <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest">{capitalizedMonth}</h4>
+            <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{year}</span>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={prevMonth} className="p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-400">
+            <ChevronRight className="rotate-180" size={18} />
+          </button>
+          <button onClick={nextMonth} className="p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-400">
+            <ChevronRight size={18} />
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-7 gap-2 mb-2">
+        {weekDays.map(wd => (
+          <div key={wd} className="text-center text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+            {wd}
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-2">
+        {days.map((d, i) => {
+          if (!d) return <div key={`empty-${i}`} className="aspect-square" />;
+          
+          const isToday = new Date().toDateString() === new Date(year, month, d.day).toDateString();
+          const hasWorked = !!d.stats;
+          const goalMet = d.stats?.goalMet;
+
+          let bgColor = 'bg-slate-50 dark:bg-slate-800/50';
+          let textColor = 'text-slate-400 dark:text-slate-600';
+          let borderColor = 'border-transparent';
+
+          if (hasWorked) {
+            if (goalMet) {
+              bgColor = 'bg-emerald-500/10';
+              textColor = 'text-emerald-600 dark:text-emerald-400';
+              borderColor = 'border-emerald-500/20';
+            } else {
+              bgColor = 'bg-indigo-500/10';
+              textColor = 'text-indigo-600 dark:text-indigo-400';
+              borderColor = 'border-indigo-500/20';
+            }
+          }
+
+          if (isToday) {
+            borderColor = 'border-indigo-500';
+          }
+
+          return (
+            <div 
+              key={d.day} 
+              className={`aspect-square rounded-2xl border ${borderColor} ${bgColor} flex flex-col items-center justify-center relative group transition-all`}
+            >
+              <span className={`text-xs font-black font-mono-num ${textColor}`}>{d.day}</span>
+              {hasWorked && (
+                <div className={`w-1 h-1 rounded-full mt-1 ${goalMet ? 'bg-emerald-500' : 'bg-indigo-500'}`} />
+              )}
+              
+              {/* Tooltip simples no hover */}
+              {hasWorked && (
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-20">
+                  <div className="bg-slate-900 text-white text-[8px] font-black px-2 py-1 rounded-lg whitespace-nowrap uppercase tracking-widest shadow-xl">
+                    {formatCurrency(d.stats.gross)}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-6 flex flex-wrap gap-4 justify-center">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-emerald-500" />
+          <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Meta Batida</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-indigo-500" />
+          <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Trabalhado</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-slate-200 dark:bg-slate-700" />
+          <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Folga</span>
+        </div>
+      </div>
     </motion.div>
   );
 };

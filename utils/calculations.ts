@@ -171,6 +171,9 @@ export const getWeeklySummary = (entries: DailyEntry[]): WeeklySummary => {
   const totalSpent = spentFuel + spentFood + spentMaintenance + spentOthers;
   const totalNet = totalGross - totalSpent;
 
+  const totalPaid = incomeEntries.filter(e => e.isPaid).reduce((acc, curr) => acc + curr.grossAmount, 0);
+  const totalPending = incomeEntries.filter(e => !e.isPaid).reduce((acc, curr) => acc + curr.grossAmount, 0);
+
   return {
     totalGross,
     totalNet,
@@ -183,6 +186,8 @@ export const getWeeklySummary = (entries: DailyEntry[]): WeeklySummary => {
     totalSpentMaintenance: spentMaintenance,
     totalSpentOthers: spentOthers,
     totalFees: totalSpent,
+    totalPaid,
+    totalPending,
     totalKm,
     workKm,
     personalKm,
