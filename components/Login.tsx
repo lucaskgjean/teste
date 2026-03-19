@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { authService } from '../services/authService';
 import { isFirebaseConfigured } from '../services/firebase';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mail, Lock, LogIn, UserPlus, AlertCircle, Loader2, Sparkles, Settings, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, LogIn, UserPlus, AlertCircle, Loader2, Sparkles, Settings, CheckCircle2, Chrome } from 'lucide-react';
 import { TERMS_OF_USE } from '../constants';
 import CustomDialog from './CustomDialog';
 
@@ -83,6 +83,26 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
       };
 
       setError(errorMessages[err.code] || 'Ocorreu um erro inesperado. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    if (!isFirebaseConfigured) {
+      setError('Configuração do Firebase incompleta.');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      await authService.loginWithGoogle();
+      onLoginSuccess();
+    } catch (err: any) {
+      console.error("Erro no login com Google:", err.code, err);
+      setError('Ocorreu um erro ao entrar com o Google. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -306,6 +326,35 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                 </>
               )}
             </button>
+
+            {isLogin && (
+              <div className="relative py-4">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-slate-800"></div>
+                </div>
+                <div className="relative flex justify-center text-[10px] uppercase font-black tracking-widest">
+                  <span className="bg-slate-950 px-4 text-slate-600">Ou</span>
+                </div>
+              </div>
+            )}
+
+            {isLogin && (
+              <button 
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={loading}
+                className="w-full bg-white hover:bg-slate-100 disabled:opacity-50 text-slate-900 font-black py-5 rounded-2xl shadow-xl transition-all active:scale-95 uppercase text-xs tracking-widest flex items-center justify-center gap-3"
+              >
+                {loading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <>
+                    <Chrome size={18} />
+                    Entrar com Google
+                  </>
+                )}
+              </button>
+            )}
           </form>
 
           <div className="mt-8 text-center">

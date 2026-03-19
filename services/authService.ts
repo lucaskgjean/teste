@@ -11,7 +11,9 @@ import {
   updateProfile,
   reauthenticateWithCredential,
   EmailAuthProvider,
-  User
+  User,
+  GoogleAuthProvider,
+  signInWithPopup
 } from "firebase/auth";
 import { auth } from "./firebase";
 import { storageService } from "./storageService";
@@ -31,6 +33,13 @@ export const authService = {
     if (!auth) throw new Error("Firebase não configurado.");
     await setPersistence(auth, browserLocalPersistence);
     return signInWithEmailAndPassword(auth, email, pass);
+  },
+
+  loginWithGoogle: async () => {
+    if (!auth) throw new Error("Firebase não configurado.");
+    const provider = new GoogleAuthProvider();
+    await setPersistence(auth, browserLocalPersistence);
+    return signInWithPopup(auth, provider);
   },
 
   reauthenticate: async (password: string) => {
