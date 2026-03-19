@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { notificationService } from '../services/notificationService';
 import { authService } from '../services/authService';
 import { isUserAdmin } from '../constants';
+import { storageService } from '../services/storageService';
 
 interface SettingsProps {
   config: AppConfig;
@@ -29,6 +30,7 @@ const Settings: React.FC<SettingsProps> = ({ config, entries, timeEntries, onCha
   const [resetPeriod, setResetPeriod] = useState({ start: '', end: '' });
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
   const [dialog, setDialog] = useState<{
     isOpen: boolean;
     title: string;
@@ -318,6 +320,58 @@ const Settings: React.FC<SettingsProps> = ({ config, entries, timeEntries, onCha
     };
     reader.readAsText(file);
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleDeepScan = async () => {
+    setIsScanning(true);
+    try {
+      const results = await storageService.scanLocalMemory();
+      
+      if (results.length === 0) {
+        setDialog({
+          isOpen: true,
+          title: 'Nenhum dado encontrado',
+          message: 'Não encontramos nenhum rastro de dados antigos na memória deste dispositivo.',
+          type: 'info',
+          onConfirm: () => setDialog(prev => ({ ...prev, isOpen: false }))
+        });
+        return;
+      }
+
+      // Agrupa por userId para facilitar a escolha
+      const groups: Record<string, any> = {};
+      results.forEach(r => {
+        if (!groups[r.userId]) groups[r.userId] = { entries: [], timeEntries: [], config: null, count: 0 };
+        if (r.type === 'entries') groups[r.userId].entries = r.data;
+        else if (r.type === 'timeEntries') groups[r.userId].timeEntries = r.data;
+        else if (r.type === 'config') groups[r.userId].config = r.data;
+        groups[r.userId].count++;
+      });
+
+      const userIds = Object.keys(groups);
+      
+      setDialog({
+        isOpen: true,
+        title: 'Dados Encontrados',
+        message: `Encontramos dados de ${userIds.length} sessões diferentes. Deseja tentar restaurar os dados da sessão mais completa?`,
+        type: 'success',
+        confirmText: 'Restaurar Agora',
+        cancelText: 'Cancelar',
+        onConfirm: () => {
+          // Pega o grupo com mais entradas
+          const bestGroup = Object.values(groups).sort((a, b) => b.entries.length - a.entries.length)[0];
+          onImport(bestGroup.entries, bestGroup.config, bestGroup.timeEntries);
+          setDialog(prev => ({ ...prev, isOpen: false }));
+          showToast("Dados restaurados com sucesso!");
+        }
+      });
+
+    } catch (error) {
+      console.error("Erro no escaneamento:", error);
+      showToast("Erro ao escanear memória.", "error");
+    } finally {
+      setIsScanning(false);
+    }
   };
 
   const handleMaintenanceAlertChange = (id: string, field: 'description' | 'kmInterval', value: string) => {
@@ -797,6 +851,23 @@ const Settings: React.FC<SettingsProps> = ({ config, entries, timeEntries, onCha
             <p className="text-xs opacity-50 mb-8 uppercase font-bold tracking-widest">Sincronização e Restauração</p>
             
             <div className="space-y-3">
+              <button 
+                onClick={handleDeepScan}
+                disabled={isScanning}
+                className="w-full flex items-center justify-between p-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase transition-all active:scale-95 shadow-lg relative overflow-hidden group disabled:opacity-50"
+              >
+                <div className="flex items-center gap-3 relative z-10">
+                  <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                    <RefreshCw size={16} className={isScanning ? 'animate-spin' : ''} />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-black">Recuperar Dados da Memória</p>
+                    <p className="text-[8px] opacity-60">Busca profunda no armazenamento local</p>
+                  </div>
+                </div>
+                <ChevronRight size={16} className="relative z-10" />
+              </button>
+
               <button onClick={handleExportCSV} className="w-full flex items-center justify-between p-4 bg-white text-slate-900 rounded-2xl font-black text-xs uppercase transition-all active:scale-95 shadow-lg relative overflow-hidden group">
                 {!config.profile?.isPro && (
                   <div className="absolute inset-0 bg-slate-900/10 flex items-center justify-center">

@@ -267,5 +267,66 @@ export const storageService = {
     localStorage.removeItem('rota_financeira_time');
     localStorage.removeItem('rota_financeira_config');
     localStorage.removeItem('rota_financeira_migrated_v2');
+  },
+
+  /**
+   * Escaneia a memória local em busca de qualquer dado que possa pertencer ao app,
+   * mesmo que de outros usuários ou versões antigas.
+   */
+  async scanLocalMemory() {
+    const results: { userId: string; type: string; data: any; encrypted: boolean }[] = [];
+    const keys = await localforage.keys();
+    
+    for (const key of keys) {
+      if (key.startsWith('rota_financeira_')) {
+        const value = await localforage.getItem(key);
+        if (!value) continue;
+
+        // Tenta identificar o tipo e o userId
+        let type = 'unknown';
+        let userId = 'global';
+
+        if (key.includes('data')) type = 'entries';
+        else if (key.includes('time')) type = 'timeEntries';
+        else if (key.includes('config')) type = 'config';
+        else if (key.includes('migrated')) continue;
+
+        const parts = key.split('_');
+        if (parts.length > 3) {
+          userId = parts[parts.length - 1];
+        }
+
+        // Tenta descriptografar se for string (provavelmente criptografado)
+        if (typeof value === 'string') {
+          // Tenta descriptografar com o userId extraído da chave
+          const decrypted = decrypt(value, userId);
+          if (decrypted) {
+            results.push({ userId, type, data: decrypted, encrypted: true });
+          } else {
+            // Se falhar, adiciona como dado criptografado não recuperado
+            results.push({ userId, type, data: value, encrypted: true });
+          }
+        } else {
+          // Dado não criptografado (versão antiga)
+          results.push({ userId, type, data: value, encrypted: false });
+        }
+      }
+    }
+
+    // Também checa o localStorage antigo
+    const oldKeys = ['rota_financeira_data', 'rota_financeira_time', 'rota_financeira_config'];
+    for (const key of oldKeys) {
+      const val = localStorage.getItem(key);
+      if (val) {
+        try {
+          const data = JSON.parse(val);
+          results.push({ userId: 'localStorage', type: key.split('_').pop() || 'unknown', data, encrypted: false });
+        } catch (e) {
+          // Ignora se não for JSON válido
+        }
+      }
+    }
+
+    return results;
   }
 };
