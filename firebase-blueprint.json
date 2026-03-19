@@ -1,0 +1,76 @@
+{
+  "entities": {
+    "DailyEntry": {
+      "title": "Daily Entry",
+      "description": "A financial entry for a specific day",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "time": { "type": "string" },
+        "storeName": { "type": "string" },
+        "grossAmount": { "type": "number" },
+        "fuel": { "type": "number" },
+        "food": { "type": "number" },
+        "maintenance": { "type": "number" },
+        "others": { "type": "number" },
+        "netAmount": { "type": "number" },
+        "kmDriven": { "type": "number" },
+        "fuelPrice": { "type": "number" },
+        "liters": { "type": "number" },
+        "kmAtMaintenance": { "type": "number" },
+        "kmType": { "type": "string", "enum": ["work", "personal"] },
+        "paymentMethod": { "type": "string", "enum": ["money", "pix", "debito", "caderno"] },
+        "isPaid": { "type": "boolean" },
+        "category": { "type": "string", "enum": ["income", "fuel", "food", "maintenance", "others"] }
+      },
+      "required": ["id", "date", "time", "storeName", "grossAmount", "netAmount"]
+    },
+    "AppConfig": {
+      "title": "App Configuration",
+      "description": "User specific application settings",
+      "type": "object",
+      "properties": {
+        "percFuel": { "type": "number" },
+        "percFood": { "type": "number" },
+        "percMaintenance": { "type": "number" },
+        "percOthers": { "type": "number" },
+        "dailyGoal": { "type": "number" },
+        "lastFuelPrice": { "type": "number" },
+        "lastTotalKm": { "type": "number" },
+        "themeMode": { "type": "string", "enum": ["light", "dark", "auto"] },
+        "notificationsEnabled": { "type": "boolean" }
+      }
+    },
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "displayName": { "type": "string" },
+        "nickname": { "type": "string" },
+        "phone": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "isPro": { "type": "boolean" },
+        "subscriptionStatus": { "type": "string", "enum": ["active", "canceled", "past_due", "none"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}/config/settings": {
+      "schema": "AppConfig",
+      "description": "User application settings"
+    },
+    "/users/{userId}/entries/{entryId}": {
+      "schema": "DailyEntry",
+      "description": "User financial entries"
+    },
+    "/users/{userId}/profile/data": {
+      "schema": "UserProfile",
+      "description": "User profile data"
+    }
+  }
+}

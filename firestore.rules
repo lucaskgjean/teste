@@ -1,0 +1,111 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users/{userId}/entries
+    // Document ID: entryId
+    // Fields:
+    //   - id: string (required)
+    //   - date: string (required, YYYY-MM-DD)
+    //   - time: string (required)
+    //   - storeName: string (required)
+    //   - grossAmount: number (required)
+    //   - fuel: number
+    //   - food: number
+    //   - maintenance: number
+    //   - others: number
+    //   - netAmount: number (required)
+    //   - kmDriven: number
+    //   - fuelPrice: number
+    //   - liters: number
+    //   - kmAtMaintenance: number
+    //   - kmType: string (enum: work, personal)
+    //   - paymentMethod: string (enum: money, pix, debito, caderno)
+    //   - isPaid: boolean
+    //   - category: string (enum: income, fuel, food, maintenance, others)
+    //
+    // Collection: users/{userId}/config
+    // Document ID: settings
+    // Fields:
+    //   - percFuel: number
+    //   - percFood: number
+    //   - percMaintenance: number
+    //   - percOthers: number
+    //   - dailyGoal: number
+    //   - lastFuelPrice: number
+    //   - lastTotalKm: number
+    //   - themeMode: string (enum: light, dark, auto)
+    //   - notificationsEnabled: boolean
+    //
+    // Collection: users/{userId}/profile
+    // Document ID: data
+    // Fields:
+    //   - firstName: string
+    //   - lastName: string
+    //   - displayName: string
+    //   - nickname: string
+    //   - phone: string
+    //   - photoURL: string
+    //   - isPro: boolean
+    //   - subscriptionStatus: string (enum: active, canceled, past_due, none)
+    //   - createdAt: string (date-time)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}$");
+    }
+
+    function isValidDateTimeString(dateTimeStr) {
+      return dateTimeStr is string && dateTimeStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUserDoc(data) {
+      return (!('entries' in data) || data.entries is list) &&
+             (!('timeEntries' in data) || data.timeEntries is list) &&
+             (!('config' in data) || data.config is map);
+    }
+
+    // ===============================================================
+    // Match Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId) && isValidUserDoc(request.resource.data);
+      allow delete: if isOwner(userId);
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
