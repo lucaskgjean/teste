@@ -82,7 +82,8 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         'auth/internal-error': 'Erro interno no servidor. Tente novamente em instantes.'
       };
 
-      setError(errorMessages[err.code] || 'Ocorreu um erro inesperado. Tente novamente.');
+      const friendlyMessage = errorMessages[err.code];
+      setError(friendlyMessage || `Erro (${err.code}): ${err.message || 'Ocorreu um erro inesperado. Tente novamente.'}`);
     } finally {
       setLoading(false);
     }
