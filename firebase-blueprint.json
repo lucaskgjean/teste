@@ -79,6 +79,19 @@
         "date": { "type": "string", "format": "date" }
       },
       "required": ["netAmount", "uid", "date"]
+    },
+    "MonthlyBalance": {
+      "title": "Monthly Balance",
+      "description": "The total net amount for the current month",
+      "type": "object",
+      "properties": {
+        "totalNetAmount": { "type": "number" },
+        "valor_liquido": { "type": "number" },
+        "uid": { "type": "string" },
+        "month": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["totalNetAmount", "uid", "month"]
     }
   },
   "firestore": {
@@ -89,6 +102,10 @@
     "/entries/{entryId}": {
       "schema": "RotaBankEntry",
       "description": "Global entries collection for RotaBank synchronization"
+    },
+    "/balances/{userId}": {
+      "schema": "MonthlyBalance",
+      "description": "Monthly balance for RotaBank synchronization"
     }
   }
 }

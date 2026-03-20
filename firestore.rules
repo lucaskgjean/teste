@@ -109,6 +109,15 @@ service cloud.firestore {
              isValidDateString(data.date);
     }
 
+    function isValidMonthlyBalance(data) {
+      return hasOnlyAllowedFields(['totalNetAmount', 'valor_liquido', 'uid', 'month', 'updatedAt']) &&
+             data.totalNetAmount is number &&
+             (!('valor_liquido' in data) || data.valor_liquido is number) &&
+             data.uid is string &&
+             data.month is string &&
+             data.month.matches("^\\d{4}-\\d{2}$");
+    }
+
     // ===============================================================
     // Match Rules
     // ===============================================================
@@ -124,6 +133,12 @@ service cloud.firestore {
       allow create: if isAuthenticated() && (request.auth.uid == request.resource.data.uid || isAdmin()) && isValidRotaBankEntry(request.resource.data);
       allow update: if isAuthenticated() && (request.auth.uid == resource.data.uid || isAdmin()) && isValidRotaBankEntry(request.resource.data);
       allow delete: if isAuthenticated() && (request.auth.uid == resource.data.uid || isAdmin());
+    }
+
+    match /balances/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create, update: if (isOwner(userId) || isAdmin()) && isValidMonthlyBalance(request.resource.data);
+      allow delete: if isOwner(userId) || isAdmin();
     }
 
     // Default deny

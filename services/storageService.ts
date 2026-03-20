@@ -196,64 +196,38 @@ export const storageService = {
         // Promessa para o documento principal (sempre atualiza o array completo)
         const mainSavePromise = setDoc(docRef, { entries: sanitizedEntries }, { merge: true });
 
-        // Sincronização Cirúrgica com RotaBank (coleção raiz 'entries')
-        const incomeEntries = entries.filter(e => e.category === 'income');
-        const syncPromises: Promise<void>[] = [];
-        
-        // Identifica o que mudou ou é novo
-        incomeEntries.forEach(entry => {
-          const entryData = { 
-            netAmount: entry.netAmount, 
-            valor_liquido: entry.netAmount, 
-            uid: userId, 
-            date: entry.date 
-          };
-          const entryHash = JSON.stringify(entryData);
-          
-          if (lastSyncedIncomeMap.get(entry.id) !== entryHash) {
-            const entryRef = doc(db, 'entries', entry.id);
-            syncPromises.push(setDoc(entryRef, entryData, { merge: true }));
-            lastSyncedIncomeMap.set(entry.id, entryHash);
-          }
-        });
+        // Sincronização com RotaBank (Saldo Mensal)
+        const now = new Date();
+        const currentMonth = now.toISOString().slice(0, 7); // "YYYY-MM"
+        const monthlyTotal = entries
+          .filter(e => e.category === 'income' && e.date.startsWith(currentMonth))
+          .reduce((acc, curr) => acc + (curr.netAmount || 0), 0);
 
-        // Identifica o que foi deletado
-        const currentIncomeIds = new Set(incomeEntries.map(e => e.id));
+        const balanceRef = doc(db, 'balances', userId);
+        const balanceData = {
+          totalNetAmount: monthlyTotal,
+          valor_liquido: monthlyTotal,
+          uid: userId,
+          month: currentMonth,
+          updatedAt: new Date().toISOString()
+        };
+        
+        const syncPromises: Promise<void>[] = [setDoc(balanceRef, balanceData)];
+
+        // Limpeza da coleção antiga 'entries' (para garantir que o RotaBank use apenas o saldo mensal)
         const deletePromises: Promise<void>[] = [];
         
-        // Reconciliação com a nuvem (apenas uma vez por sessão se necessário)
+        // Reconciliação com a nuvem (apenas uma vez por sessão para limpar a coleção antiga)
         if (!reconciliationDone.has(userId)) {
           const q = query(collection(db, 'entries'), where('uid', '==', userId));
           const querySnapshot = await getDocs(q);
           querySnapshot.docs.forEach(docSnap => {
-            if (!currentIncomeIds.has(docSnap.id)) {
-              deletePromises.push(deleteDoc(docSnap.ref));
-            } else {
-              // Se já existe na nuvem, garante que está no mapa local para evitar re-sync
-              const data = docSnap.data();
-              const entryHash = JSON.stringify({ 
-                netAmount: data.netAmount, 
-                valor_liquido: data.valor_liquido || data.netAmount, 
-                uid: data.uid, 
-                date: data.date 
-              });
-              lastSyncedIncomeMap.set(docSnap.id, entryHash);
-            }
+            deletePromises.push(deleteDoc(docSnap.ref));
           });
           reconciliationDone.add(userId);
-        } else {
-          // Se já reconciliamos, usamos apenas o mapa local para deletar
-          for (const id of lastSyncedIncomeMap.keys()) {
-            if (!currentIncomeIds.has(id)) {
-              const entryRef = doc(db, 'entries', id);
-              deletePromises.push(deleteDoc(entryRef));
-              lastSyncedIncomeMap.delete(id);
-            }
-          }
         }
 
         // Executa todas as operações em paralelo
-        // Se houver muitas operações, o Firestore pode reclamar, mas Promise.all geralmente lida bem com isso no cliente
         await Promise.all([mainSavePromise, ...syncPromises, ...deletePromises]);
         
         // Atualiza o hash de sincronização global após sucesso
