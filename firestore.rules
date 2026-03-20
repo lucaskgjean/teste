@@ -102,8 +102,9 @@ service cloud.firestore {
     }
 
     function isValidRotaBankEntry(data) {
-      return hasOnlyAllowedFields(['netAmount', 'uid', 'date']) &&
+      return hasOnlyAllowedFields(['netAmount', 'valor_liquido', 'uid', 'date']) &&
              data.netAmount is number &&
+             (!('valor_liquido' in data) || data.valor_liquido is number) &&
              data.uid is string &&
              isValidDateString(data.date);
     }

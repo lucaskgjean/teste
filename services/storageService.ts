@@ -53,6 +53,7 @@ let lastSyncedHash: string | null = null;
 let lastSyncedTimeHash: string | null = null;
 let lastSyncedConfigHash: string | null = null;
 let lastSyncedIncomeMap: Map<string, string> = new Map(); // id -> hash dos campos relevantes
+let reconciliationDone: Set<string> = new Set(); // userId -> boolean
 
 export const storageService = {
   /**
@@ -86,7 +87,6 @@ export const storageService = {
     await localforage.setItem(KEYS.MIGRATED + '_' + userId, true);
     
     // Opcional: Limpar dados antigos globais para evitar vazamento futuro
-    // Mas vamos manter por segurança por enquanto, ou limpar se tivermos certeza
     console.log('Migração isolada concluída!');
   },
 
@@ -101,7 +101,12 @@ export const storageService = {
       lastSyncedHash = CryptoJS.MD5(JSON.stringify(entries)).toString();
       // Popula o mapa de renda para sync cirúrgico
       entries.filter((e: DailyEntry) => e.category === 'income').forEach((e: DailyEntry) => {
-        lastSyncedIncomeMap.set(e.id, JSON.stringify({ netAmount: e.netAmount, uid: userId, date: e.date }));
+        lastSyncedIncomeMap.set(e.id, JSON.stringify({ 
+          netAmount: e.netAmount, 
+          valor_liquido: e.netAmount, 
+          uid: userId, 
+          date: e.date 
+        }));
       });
     }
     
@@ -142,8 +147,15 @@ export const storageService = {
             lastSyncedHash = CryptoJS.MD5(JSON.stringify(data.entries)).toString();
             lastSyncedIncomeMap.clear();
             data.entries.filter((e: DailyEntry) => e.category === 'income').forEach((e: DailyEntry) => {
-              lastSyncedIncomeMap.set(e.id, JSON.stringify({ netAmount: e.netAmount, uid: userId, date: e.date }));
+              lastSyncedIncomeMap.set(e.id, JSON.stringify({ 
+                netAmount: e.netAmount, 
+                valor_liquido: e.netAmount, 
+                uid: userId, 
+                date: e.date 
+              }));
             });
+            // Marca como reconciliado pois acabamos de puxar a verdade da nuvem
+            reconciliationDone.add(userId);
 
             await this.saveEntries(data.entries, userId, false); // Salva localmente (criptografado)
             return data.entries;
@@ -151,7 +163,7 @@ export const storageService = {
         }
       } catch (e: any) {
         if (e.code !== 'unavailable' && !e.message?.includes('offline')) {
-          console.error(`Erro ao buscar entradas do Firestore (User: ${userId}, Auth: ${auth?.currentUser?.uid}):`, e);
+          console.error(`Erro ao buscar entradas do Firestore (User: ${userId}):`, e);
         }
       }
     }
@@ -190,7 +202,12 @@ export const storageService = {
         
         // Identifica o que mudou ou é novo
         incomeEntries.forEach(entry => {
-          const entryData = { netAmount: entry.netAmount, uid: userId, date: entry.date };
+          const entryData = { 
+            netAmount: entry.netAmount, 
+            valor_liquido: entry.netAmount, 
+            uid: userId, 
+            date: entry.date 
+          };
           const entryHash = JSON.stringify(entryData);
           
           if (lastSyncedIncomeMap.get(entry.id) !== entryHash) {
@@ -200,13 +217,32 @@ export const storageService = {
           }
         });
 
-        // Identifica o que foi deletado (apenas se o mapa não estiver vazio, para evitar deletar tudo no primeiro sync)
+        // Identifica o que foi deletado
         const currentIncomeIds = new Set(incomeEntries.map(e => e.id));
         const deletePromises: Promise<void>[] = [];
         
-        // Se temos um estado anterior conhecido, deletamos apenas o que sumiu
-        // Caso contrário (primeiro sync da sessão), precisamos buscar no banco para limpar
-        if (lastSyncedIncomeMap.size > 0) {
+        // Reconciliação com a nuvem (apenas uma vez por sessão se necessário)
+        if (!reconciliationDone.has(userId)) {
+          const q = query(collection(db, 'entries'), where('uid', '==', userId));
+          const querySnapshot = await getDocs(q);
+          querySnapshot.docs.forEach(docSnap => {
+            if (!currentIncomeIds.has(docSnap.id)) {
+              deletePromises.push(deleteDoc(docSnap.ref));
+            } else {
+              // Se já existe na nuvem, garante que está no mapa local para evitar re-sync
+              const data = docSnap.data();
+              const entryHash = JSON.stringify({ 
+                netAmount: data.netAmount, 
+                valor_liquido: data.valor_liquido || data.netAmount, 
+                uid: data.uid, 
+                date: data.date 
+              });
+              lastSyncedIncomeMap.set(docSnap.id, entryHash);
+            }
+          });
+          reconciliationDone.add(userId);
+        } else {
+          // Se já reconciliamos, usamos apenas o mapa local para deletar
           for (const id of lastSyncedIncomeMap.keys()) {
             if (!currentIncomeIds.has(id)) {
               const entryRef = doc(db, 'entries', id);
@@ -214,18 +250,10 @@ export const storageService = {
               lastSyncedIncomeMap.delete(id);
             }
           }
-        } else {
-          // Reconciliação total (apenas uma vez por sessão se o cache estiver vazio)
-          const q = query(collection(db, 'entries'), where('uid', '==', userId));
-          const querySnapshot = await getDocs(q);
-          querySnapshot.docs.forEach(docSnap => {
-            if (!currentIncomeIds.has(docSnap.id)) {
-              deletePromises.push(deleteDoc(docSnap.ref));
-            }
-          });
         }
 
         // Executa todas as operações em paralelo
+        // Se houver muitas operações, o Firestore pode reclamar, mas Promise.all geralmente lida bem com isso no cliente
         await Promise.all([mainSavePromise, ...syncPromises, ...deletePromises]);
         
         // Atualiza o hash de sincronização global após sucesso
@@ -233,7 +261,7 @@ export const storageService = {
         
       } catch (e: any) {
         if (e.code !== 'unavailable' && !e.message?.includes('offline')) {
-          console.error(`Erro ao salvar entradas no Firestore (User: ${userId}, Auth: ${auth?.currentUser?.uid}):`, e);
+          console.error(`Erro ao salvar entradas no Firestore (User: ${userId}):`, e);
         }
       }
     }

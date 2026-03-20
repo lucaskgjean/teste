@@ -74,6 +74,7 @@
       "type": "object",
       "properties": {
         "netAmount": { "type": "number" },
+        "valor_liquido": { "type": "number" },
         "uid": { "type": "string" },
         "date": { "type": "string", "format": "date" }
       },
