@@ -348,27 +348,43 @@ const App: React.FC = () => {
     }
   }, [isInitialLoading, timeEntries, user]);
 
-  // 3. Garantir createdAt para usuários existentes/novos
+  // 3. Garantir createdAt e inicializar perfil do Firebase Auth se estiver vazio
   useEffect(() => {
-    if (authChecked && user && !user.emailVerified && config.profile && !config.profile.createdAt) {
-      const now = new Date().toISOString();
+    if (!authChecked || !user || isInitialLoading) return;
+
+    let hasChanges = false;
+    const newProfile = { ...(config.profile || {}) };
+
+    // 1. Garante createdAt
+    if (!newProfile.createdAt) {
+      newProfile.createdAt = new Date().toISOString();
+      hasChanges = true;
+    }
+
+    // 2. Inicializa nome e foto se estiverem vazios
+    if (!newProfile.displayName && user.displayName) {
+      newProfile.displayName = user.displayName;
+      const names = user.displayName.split(' ');
+      if (!newProfile.firstName) newProfile.firstName = names[0] || '';
+      if (!newProfile.lastName) newProfile.lastName = names.slice(1).join(' ') || '';
+      hasChanges = true;
+    }
+
+    if (!newProfile.photoURL && user.photoURL) {
+      newProfile.photoURL = user.photoURL;
+      hasChanges = true;
+    }
+
+    if (hasChanges) {
       setConfig(prev => ({
         ...prev,
         profile: {
           ...prev.profile,
-          createdAt: now
+          ...newProfile
         }
       }));
-      // Salva para persistir
-      storageService.saveConfig({
-        ...config,
-        profile: {
-          ...(config.profile || {}),
-          createdAt: now
-        }
-      }, user.uid, config.profile?.isPro);
     }
-  }, [authChecked, user, config.profile?.createdAt]);
+  }, [authChecked, user, isInitialLoading, config.profile?.displayName, config.profile?.photoURL, config.profile?.createdAt]);
 
   // Carregamento Inicial Otimizado (Local Primeiro -> Nuvem depois)
   useEffect(() => {
@@ -381,11 +397,16 @@ const App: React.FC = () => {
         await storageService.migrateFromLocalStorage(user.uid);
 
         // 1. Carregamento Ultra Rápido (Local - Criptografado e Isolado)
-        const [localEntries, localTimeEntries, localConfig] = await Promise.all([
-          storageService.getLocalEntries(user.uid),
-          storageService.getLocalTimeEntries(user.uid),
+        const [localData, localTimeData, localConfig] = await Promise.all([
+          storageService.getLocalEntriesWithMetadata(user.uid),
+          storageService.getLocalTimeEntriesWithMetadata(user.uid),
           storageService.getLocalConfig(user.uid)
         ]);
+
+        const localEntries = localData.entries;
+        const localUpdatedAt = localData.updatedAt;
+        const localTimeEntries = localTimeData.timeEntries;
+        const localTimeUpdatedAt = localTimeData.updatedAt;
 
         if (localEntries.length > 0) setEntries(recalculateKmDeltas(localEntries));
         if (localTimeEntries.length > 0) setTimeEntries(localTimeEntries);
@@ -406,14 +427,37 @@ const App: React.FC = () => {
 
         // 2. Sincronização em Segundo Plano (Nuvem)
         setIsRefreshing(true);
-        const [cloudEntries, cloudTimeEntries, cloudConfig] = await Promise.all([
+        const [cloudData, cloudTimeData, cloudConfig] = await Promise.all([
           storageService.getEntries(user.uid),
           storageService.getTimeEntries(user.uid),
           storageService.getConfig(user.uid)
         ]);
 
-        if (cloudEntries.length > 0) setEntries(recalculateKmDeltas(cloudEntries));
-        if (cloudTimeEntries.length > 0) setTimeEntries(cloudTimeEntries);
+        const cloudEntries = cloudData.entries;
+        const cloudUpdatedAt = cloudData.updatedAt;
+        const cloudTimeEntries = cloudTimeData.timeEntries;
+        const cloudTimeUpdatedAt = cloudTimeData.updatedAt;
+
+        // Reconciliação inteligente para evitar perda de dados recentes
+        if (cloudEntries.length > 0) {
+          const isCloudNewer = !localUpdatedAt || !cloudUpdatedAt || new Date(cloudUpdatedAt) > new Date(localUpdatedAt);
+          if (isCloudNewer) {
+            console.log(`[App] Atualizando entries da nuvem (Cloud: ${cloudUpdatedAt}, Local: ${localUpdatedAt})`);
+            setEntries(recalculateKmDeltas(cloudEntries));
+          } else {
+            console.log(`[App] Mantendo entries locais mais recentes (Cloud: ${cloudUpdatedAt}, Local: ${localUpdatedAt})`);
+          }
+        }
+
+        if (cloudTimeEntries.length > 0) {
+          const isCloudNewer = !localTimeUpdatedAt || !cloudTimeUpdatedAt || new Date(cloudTimeUpdatedAt) > new Date(localTimeUpdatedAt);
+          if (isCloudNewer) {
+            console.log(`[App] Atualizando timeEntries da nuvem (Cloud: ${cloudTimeUpdatedAt}, Local: ${localTimeUpdatedAt})`);
+            setTimeEntries(cloudTimeEntries);
+          } else {
+            console.log(`[App] Mantendo timeEntries locais mais recentes (Cloud: ${cloudTimeUpdatedAt}, Local: ${localTimeUpdatedAt})`);
+          }
+        }
         if (cloudConfig) {
           setConfig(prev => ({ 
             ...DEFAULT_CONFIG, 
@@ -451,11 +495,14 @@ const App: React.FC = () => {
     if (isRefreshing || !user) return;
     setIsRefreshing(true);
     try {
-      const [savedEntries, savedTimeEntries, savedConfig] = await Promise.all([
+      const [cloudData, cloudTimeData, savedConfig] = await Promise.all([
         storageService.getEntries(user.uid),
         storageService.getTimeEntries(user.uid),
         storageService.getConfig(user.uid)
       ]);
+
+      const savedEntries = cloudData.entries;
+      const savedTimeEntries = cloudTimeData.timeEntries;
 
       setEntries(savedEntries.map(entry => ({ ...entry, id: entry.id || generateId() })));
       setTimeEntries(savedTimeEntries);
@@ -503,48 +550,56 @@ const App: React.FC = () => {
     console.log(`[Persistence] isSaving state changed: ${isSaving}`);
   }, [isSaving]);
 
-  // Persistência Assíncrona com Feedback (Debounced)
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
+  // 1. Persistência Local Imediata (Fast Save)
   useEffect(() => {
-    if (isInitialLoading || isRefreshing || !user) return; // Evita salvar durante o carregamento inicial ou atualização manual
+    if (isInitialLoading || !user) return;
+    
+    const timeout = setTimeout(async () => {
+      try {
+        await Promise.all([
+          storageService.saveEntries(entries, user.uid, false),
+          storageService.saveTimeEntries(timeEntries, user.uid, false)
+        ]);
+      } catch (e) {
+        console.error("[App] Erro ao salvar localmente", e);
+      }
+    }, 200); // 200ms para agrupar mudanças mas salvar quase na hora
+    
+    return () => clearTimeout(timeout);
+  }, [entries, timeEntries, isInitialLoading, user]);
 
-    // Limpa timeout anterior se houver
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-
-    // Debounce de 1.5 segundos para evitar excesso de escritas no Firestore
-    saveTimeoutRef.current = setTimeout(async () => {
-      console.log(`[App] Iniciando saveData (debounced). Entries: ${entries.length}, TimeEntries: ${timeEntries.length}`);
+  // 2. Sincronização com a Nuvem (Debounced)
+  useEffect(() => {
+    if (isInitialLoading || isRefreshing || !user) return;
+    
+    const timeout = setTimeout(async () => {
+      console.log(`[App] Iniciando sync na nuvem (debounced).`);
       setIsSaving(true);
       try {
         await Promise.all([
-          storageService.saveEntries(entries, user.uid, config.profile?.isPro),
-          storageService.saveTimeEntries(timeEntries, user.uid, config.profile?.isPro)
+          storageService.saveEntries(entries, user.uid, true),
+          storageService.saveTimeEntries(timeEntries, user.uid, true)
         ]);
-        console.log(`[App] saveData concluído com sucesso.`);
+        console.log(`[App] Sync na nuvem concluído.`);
       } catch (e) {
-        console.error("[App] Erro ao salvar dados", e);
+        console.error("[App] Erro ao sincronizar com a nuvem", e);
       } finally {
-        // Pequeno atraso visual para o feedback de "Salvo"
-        setTimeout(() => {
-          setIsSaving(false);
-          console.log(`[App] isSaving set to false.`);
-        }, 1000);
+        setTimeout(() => setIsSaving(false), 1000);
       }
-    }, 1500);
-
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
+    }, 2500); // 2.5 segundos para a nuvem para evitar excesso de escritas
+    
+    return () => clearTimeout(timeout);
   }, [entries, timeEntries, isInitialLoading, isRefreshing, user, config.profile?.isPro]);
 
   useEffect(() => {
     if (isInitialLoading || isRefreshing || !user) return;
-    storageService.saveConfig(config, user.uid, config.profile?.isPro).catch(console.error);
+    // Sincroniza config para a nuvem sempre que houver mudança, independente de ser PRO
+    // Isso garante que o perfil (nome, foto) seja persistido para todos os usuários logados
+    const timeout = setTimeout(() => {
+      storageService.saveConfig(config, user.uid, true).catch(console.error);
+    }, 1000);
+    
+    return () => clearTimeout(timeout);
   }, [config, isInitialLoading, isRefreshing, user]);
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {

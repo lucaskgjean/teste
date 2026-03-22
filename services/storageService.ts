@@ -158,7 +158,16 @@ export const storageService = {
     if (!userId) return [];
     const key = `${KEYS.ENTRIES}_${userId}`;
     const encrypted = await localforage.getItem<string>(key);
-    const entries = decrypt(encrypted, userId) || [];
+    const decrypted = decrypt(encrypted, userId);
+    
+    let entries: DailyEntry[] = [];
+    if (decrypted) {
+      if (Array.isArray(decrypted)) {
+        entries = decrypted;
+      } else if (decrypted.entries) {
+        entries = decrypted.entries;
+      }
+    }
     
     // Inicializa o hash local para evitar sync imediato se os dados forem iguais
     if (entries.length > 0 && !lastSyncedHash) {
@@ -179,15 +188,55 @@ export const storageService = {
     return entries;
   },
 
+  async getLocalEntriesWithMetadata(userId: string): Promise<{ entries: DailyEntry[], updatedAt?: string }> {
+    if (!userId) return { entries: [] };
+    const key = `${KEYS.ENTRIES}_${userId}`;
+    const encrypted = await localforage.getItem<string>(key);
+    const decrypted = decrypt(encrypted, userId);
+    
+    if (decrypted) {
+      if (Array.isArray(decrypted)) {
+        return { entries: decrypted };
+      }
+      return decrypted;
+    }
+    return { entries: [] };
+  },
+
   async getLocalTimeEntries(userId: string): Promise<TimeEntry[]> {
     if (!userId) return [];
     const key = `${KEYS.TIME_ENTRIES}_${userId}`;
     const encrypted = await localforage.getItem<string>(key);
-    const timeEntries = decrypt(encrypted, userId) || [];
+    const decrypted = decrypt(encrypted, userId);
+    
+    let timeEntries: TimeEntry[] = [];
+    if (decrypted) {
+      if (Array.isArray(decrypted)) {
+        timeEntries = decrypted;
+      } else if (decrypted.timeEntries) {
+        timeEntries = decrypted.timeEntries;
+      }
+    }
+    
     if (timeEntries.length > 0 && !lastSyncedTimeHash) {
       lastSyncedTimeHash = CryptoJS.MD5(JSON.stringify(timeEntries)).toString();
     }
     return timeEntries;
+  },
+
+  async getLocalTimeEntriesWithMetadata(userId: string): Promise<{ timeEntries: TimeEntry[], updatedAt?: string }> {
+    if (!userId) return { timeEntries: [] };
+    const key = `${KEYS.TIME_ENTRIES}_${userId}`;
+    const encrypted = await localforage.getItem<string>(key);
+    const decrypted = decrypt(encrypted, userId);
+    
+    if (decrypted) {
+      if (Array.isArray(decrypted)) {
+        return { timeEntries: decrypted };
+      }
+      return decrypted;
+    }
+    return { timeEntries: [] };
   },
 
   async getLocalConfig(userId: string): Promise<AppConfig | null> {
@@ -201,7 +250,7 @@ export const storageService = {
     return config;
   },
 
-  async getEntries(userId: string): Promise<DailyEntry[]> {
+  async getEntries(userId: string): Promise<{ entries: DailyEntry[], updatedAt?: string }> {
     if (userId && db) {
       try {
         const docRef = doc(db, 'users', userId);
@@ -226,7 +275,7 @@ export const storageService = {
             syncReconciliationDone.add(userId);
 
             await this.saveEntries(data.entries, userId, false); // Salva localmente (criptografado)
-            return data.entries;
+            return { entries: data.entries, updatedAt: data.updatedAt };
           }
         }
       } catch (e: any) {
@@ -235,17 +284,19 @@ export const storageService = {
         }
       }
     }
-    return await this.getLocalEntries(userId);
+    const local = await this.getLocalEntries(userId);
+    return { entries: local };
   },
 
   async saveEntries(entries: DailyEntry[], userId: string, syncToCloud: boolean = true) {
     if (!userId) return;
     
-    console.log(`[storageService] Iniciando saveEntries para ${userId}. Sync: ${syncToCloud}`);
+    const updatedAt = new Date().toISOString();
+    console.log(`[storageService] Iniciando saveEntries para ${userId}. Sync: ${syncToCloud}, UpdatedAt: ${updatedAt}`);
     
     // 1. Salva Localmente Primeiro (Sempre)
     const key = `${KEYS.ENTRIES}_${userId}`;
-    const encrypted = encrypt(entries, userId);
+    const encrypted = encrypt({ entries, updatedAt }, userId);
     if (encrypted) {
       await localforage.setItem(key, encrypted);
     }
@@ -265,13 +316,13 @@ export const storageService = {
         const sanitizedEntries = sanitizeForFirestore(entries);
         
         // Promessa para o documento principal (sempre atualiza o array completo)
-        const mainSavePromise = setDoc(docRef, { entries: sanitizedEntries }, { merge: true });
+        const mainSavePromise = setDoc(docRef, { entries: sanitizedEntries, updatedAt }, { merge: true });
 
         // Sincronização com RotaBank (Saldo Mensal)
         const now = new Date();
         const currentMonth = now.toISOString().slice(0, 7); // "YYYY-MM"
         const monthlyTotal = entries
-          .filter(e => e.category === 'income' && e.date.startsWith(currentMonth))
+          .filter(e => e.date.startsWith(currentMonth))
           .reduce((acc, curr) => acc + (curr.netAmount || 0), 0);
 
         const balanceRef = doc(db, 'balances', userId);
@@ -290,7 +341,8 @@ export const storageService = {
         
         // 1. Limpeza da coleção antiga (apenas uma vez por sessão para garantir integridade)
         // Isso garante que entradas deletadas localmente também sejam removidas da nuvem
-        if (!oldEntriesCleared.has(userId)) {
+        // CRITICAL: Só limpa se já tivermos reconciliado com a nuvem para evitar apagar dados que ainda não baixamos
+        if (!oldEntriesCleared.has(userId) && syncReconciliationDone.has(userId)) {
           try {
             console.log(`[storageService] Limpando entradas antigas para ${userId}...`);
             const q = query(collection(db, 'entries'), where('uid', '==', userId));
@@ -324,11 +376,14 @@ export const storageService = {
           
           let hasChangesInBatch = false;
           for (const entry of chunk) {
+            // Constrói data ISO combinando data e hora do lançamento
+            const isoDate = new Date(`${entry.date}T${entry.time || '12:00'}:00`).toISOString();
+            
             const entryData = {
               uid: userId,
               netAmount: entry.netAmount || 0,
               valor_liquido: entry.netAmount || 0,
-              date: entry.date,
+              date: isoDate,
               description: entry.storeName || `Faturamento - ${entry.date}`
             };
             
@@ -362,7 +417,7 @@ export const storageService = {
     }
   },
 
-  async getTimeEntries(userId: string): Promise<TimeEntry[]> {
+  async getTimeEntries(userId: string): Promise<{ timeEntries: TimeEntry[], updatedAt?: string }> {
     if (userId && db) {
       try {
         const docRef = doc(db, 'users', userId);
@@ -372,7 +427,7 @@ export const storageService = {
           if (data.timeEntries) {
             lastSyncedTimeHash = CryptoJS.MD5(JSON.stringify(data.timeEntries)).toString();
             await this.saveTimeEntries(data.timeEntries, userId, false);
-            return data.timeEntries;
+            return { timeEntries: data.timeEntries, updatedAt: data.updatedAt };
           }
         }
       } catch (e: any) {
@@ -381,14 +436,18 @@ export const storageService = {
         }
       }
     }
-    return await this.getLocalTimeEntries(userId);
+    const local = await this.getLocalTimeEntries(userId);
+    return { timeEntries: local };
   },
 
   async saveTimeEntries(timeEntries: TimeEntry[], userId: string, syncToCloud: boolean = true) {
     if (!userId) return;
 
+    const updatedAt = new Date().toISOString();
+    
+    // 1. Salva Localmente
     const key = `${KEYS.TIME_ENTRIES}_${userId}`;
-    const encrypted = encrypt(timeEntries, userId);
+    const encrypted = encrypt({ timeEntries, updatedAt }, userId);
     if (encrypted) {
       await localforage.setItem(key, encrypted);
     }
@@ -400,7 +459,7 @@ export const storageService = {
       try {
         const docRef = doc(db, 'users', userId);
         const sanitizedTimeEntries = sanitizeForFirestore(timeEntries);
-        await setDoc(docRef, { timeEntries: sanitizedTimeEntries }, { merge: true });
+        await setDoc(docRef, { timeEntries: sanitizedTimeEntries, updatedAt }, { merge: true });
         lastSyncedTimeHash = currentHash;
       } catch (e: any) {
         if (e.code !== 'unavailable' && !e.message?.includes('offline')) {

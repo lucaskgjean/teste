@@ -65,8 +65,19 @@
       "properties": {
         "entries": { "type": "array", "items": { "$ref": "DailyEntry" } },
         "timeEntries": { "type": "array", "items": { "type": "object" } },
-        "config": { "$ref": "AppConfig" }
+        "config": { "$ref": "AppConfig" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       }
+    },
+    "TimeEntriesDocument": {
+      "title": "Time Entries Document",
+      "description": "Document containing all time entries (points)",
+      "type": "object",
+      "properties": {
+        "timeEntries": { "type": "array", "items": { "type": "object" } },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["timeEntries"]
     },
     "RotaBankEntry": {
       "title": "RotaBank Entry",
@@ -107,6 +118,10 @@
     "/balances/{userId}": {
       "schema": "MonthlyBalance",
       "description": "Monthly balance for RotaBank synchronization"
+    },
+    "/time_entries/{userId}": {
+      "schema": "TimeEntriesDocument",
+      "description": "Separate collection for user time entries (points)"
     }
   }
 }

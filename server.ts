@@ -67,18 +67,18 @@ app.use((req, res, next) => {
 });
 
 // Servir arquivos estáticos da pasta public explicitamente
-app.use(express.static(path.join(process.cwd(), "public")));
+app.use(express.static(path.resolve(__dirname, "public")));
 
 // Rota específica para o Service Worker para garantir o MIME type correto
 app.get("/sw.js", (req, res) => {
-  const swPath = path.join(process.cwd(), "public", "sw.js");
+  const swPath = path.resolve(__dirname, "public", "sw.js");
   res.setHeader('Content-Type', 'application/javascript');
   res.sendFile(swPath);
 });
 
 // Rota específica para o manifest.json
 app.get("/manifest.json", (req, res) => {
-  const manifestPath = path.join(process.cwd(), "public", "manifest.json");
+  const manifestPath = path.resolve(__dirname, "public", "manifest.json");
   res.setHeader('Content-Type', 'application/json');
   res.sendFile(manifestPath);
 });
@@ -444,9 +444,10 @@ if (process.env.NODE_ENV !== "production") {
   });
 } else {
   // Servir arquivos estáticos em produção
-  app.use(express.static(path.join(process.cwd(), "dist")));
+  const distPath = path.resolve(__dirname, "dist");
+  app.use(express.static(distPath));
   app.get("*", (req, res) => {
-    res.sendFile(path.join(process.cwd(), "dist", "index.html"));
+    res.sendFile(path.resolve(distPath, "index.html"));
   });
 }
 
